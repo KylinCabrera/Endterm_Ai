@@ -1,8 +1,10 @@
 fastapi
-uvicorn[standard]
-motor
+uvicorn
 pymongo
-pydantic[email]
-bcrypt
-python-jose[cryptography]
+motor
+pydantic
+pydantic-settings
 python-dotenv
+python-jose[cryptography]
+passlib[bcrypt]
+google-genai
