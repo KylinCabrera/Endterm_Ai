@@ -34,3 +34,7 @@ jobs:
     - name: Test import sanity check
       run: |
         python -c "import app.main; print('App module loaded successfully')"
+
+    - name: Run Unit Tests
+      run: |
+        pytest
