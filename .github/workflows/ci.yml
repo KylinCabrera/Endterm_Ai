@@ -1,12 +1,22 @@
 name: CI Pipeline
 
 on:
+  push:
+    branches: [ main, dev ]
   pull_request:
     branches: [ main, dev ]
 
 jobs:
   build-and-lint:
     runs-on: ubuntu-latest
+
+    env:
+      MONGODB_URL: ${{ secrets.MONGODB_URL }}
+      DB_NAME: ${{ secrets.DB_NAME }}
+      JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+      ALGORITHM: ${{ secrets.ALGORITHM }}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${{ secrets.ACCESS_TOKEN_EXPIRE_MINUTES }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
     steps:
     - uses: actions/checkout@v4
