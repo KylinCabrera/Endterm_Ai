@@ -19,24 +19,34 @@ jobs:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-    - name: Test import sanity check
-      run: |
-        python -c "import app.main; print('App module loaded successfully')"
+      - name: Test import sanity check
+        run: |
+          python -c "import app.main; print('App module loaded successfully')"
 
-    - name: Run Unit Tests
-      env:
-        PYTHONPATH: .
-      run: |
-        pytest
+      - name: Run Unit Tests
+        env:
+          PYTHONPATH: .
+        run: |
+          pytest
+
+  deploy:
+    needs: build-and-lint
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Server Deployment
+        run: |
+          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
