@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import ScanLabelModal from '../components/ScanLabelModal';
 
 export default function Dashboard() {
   const [status, setStatus] = useState("Loading...");
@@ -28,12 +29,13 @@ export default function Dashboard() {
       <h1 className="text-2xl font-bold mb-4">NutriGo AI Dashboard</h1>
       <p className="text-lg">
         <strong>API status:</strong>{" "}
-        {error ? (
-          <span className="text-red-500 font-semibold">{error}</span>
-        ) : (
-          <span className="text-green-600 font-semibold">{status}</span>
-        )}
       </p>
-    </div>
+
+      {/* Add the component here */}
+    <ScanLabelModal 
+      currentUserEmail="user@example.com" 
+      onCartUpdated={() => console.log("Cart updated!")} 
+    />
+  </div>
   );
 }
