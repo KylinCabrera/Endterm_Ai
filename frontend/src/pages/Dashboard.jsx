@@ -1,14 +1,39 @@
-import { useEffect, useState } from 'react'
-import { getStatus } from '../lib/api'
+import { useEffect, useState } from "react";
 
 export default function Dashboard() {
-  const [status, setStatus] = useState('Loading...')
+  const [status, setStatus] = useState("Loading...");
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    getStatus()
-      .then(d => setStatus(d.status))
-      .catch(() => setStatus('API unreachable'))
-  }, [])
+    // Fetch directly from your live Render backend
+    fetch("https://nutrigo-ai-backend.onrender.com/")
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! Status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        setStatus(data.status);
+      })
+      .catch((err) => {
+        console.error("Fetch error:", err);
+        setError("Failed to connect to backend API");
+        setStatus("");
+      });
+  }, []);
 
-  return <p className="p-6 text-lg font-semibold">API status: {status}</p>
+  return (
+    <div className="p-8 font-sans">
+      <h1 className="text-2xl font-bold mb-4">NutriGo AI Dashboard</h1>
+      <p className="text-lg">
+        <strong>API status:</strong>{" "}
+        {error ? (
+          <span className="text-red-500 font-semibold">{error}</span>
+        ) : (
+          <span className="text-green-600 font-semibold">{status}</span>
+        )}
+      </p>
+    </div>
+  );
 }
