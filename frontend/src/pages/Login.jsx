@@ -20,7 +20,7 @@ export default function Login() {
     try {
       const data = await login(form)
       if (data.access_token) localStorage.setItem('token', data.access_token)
-      navigate('/')
+      navigate('/dashboard')
     } catch (err) {
       setError(err.message)
     } finally {
