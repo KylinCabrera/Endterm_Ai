@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { login } from '../lib/api'
 
 const inputClass =
@@ -11,6 +11,10 @@ export default function Login() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  if (localStorage.getItem('token')) {
+    return <Navigate to="/dashboard" replace />
+  }
+
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
 
   const handleSubmit = async (e) => {
@@ -20,7 +24,7 @@ export default function Login() {
     try {
       const data = await login(form)
       if (data.access_token) localStorage.setItem('token', data.access_token)
-      navigate('/')
+      navigate('/dashboard')
     } catch (err) {
       setError(err.message)
     } finally {
