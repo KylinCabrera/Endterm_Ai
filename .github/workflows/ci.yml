@@ -50,3 +50,5 @@ jobs:
       - name: Trigger Server Deployment
         run: |
           curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+
+#moved the ci from frontend to backend because the frontend is not a python project and the ci was failing
