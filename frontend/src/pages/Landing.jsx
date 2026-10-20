@@ -18,11 +18,11 @@ export default function Landing() {
           </Link>
 
           <nav className="flex items-center gap-5">
-            <Link to="/login" className="text-sm font-semibold text-[#1a3a2c] hover:text-[#066b4c]">
+            <Link to="/sign-in" className="text-sm font-semibold text-[#1a3a2c] hover:text-[#066b4c]">
               Sign in
             </Link>
             <Link
-              to="/signup"
+              to="/sign-up"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#066b4c] text-white text-sm font-semibold shadow-md hover:bg-[#055a40] transition"
             >
               Get started <ArrowRight className="w-4 h-4" />
@@ -56,12 +56,12 @@ export default function Landing() {
 
           <div className="mt-9 flex flex-wrap items-center gap-6">
             <Link
-              to="/signup"
+              to="/sign-up"
               className="inline-flex items-center gap-2 px-7 py-4 rounded-xl bg-[#066b4c] text-white font-semibold shadow-lg hover:bg-[#055a40] transition"
             >
               Start with a label <ArrowRight className="w-4 h-4" />
             </Link>
-            <Link to="/login" className="text-sm font-medium text-[#3f5547] hover:text-[#066b4c]">
+            <Link to="/sign-in" className="text-sm font-medium text-[#3f5547] hover:text-[#066b4c]">
               I already have an account
             </Link>
           </div>

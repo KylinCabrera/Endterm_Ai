@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useUser, useAuth } from '@clerk/clerk-react';
 import { 
   Camera, 
   ShoppingBag, 
   Plus, 
+  Minus,
   Trash2, 
   Edit, 
   Search, 
@@ -16,7 +18,7 @@ import {
   Zap
 } from 'lucide-react';
 
-const API_BASE_URL = "https://nutrigo-ai-backend.onrender.com/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 const SAMPLE_PRESETS = [
   {
@@ -38,7 +40,10 @@ const SAMPLE_PRESETS = [
 ];
 
 export default function Dashboard() {
-  const currentUserEmail = "kylin.cabrera@nutrigo.ai";
+  const { user } = useUser();
+  const { getToken } = useAuth();
+
+  const currentUserEmail = user?.primaryEmailAddress?.emailAddress || "guest@nutrigo.ai";
   const userBudgetGoal = 5000;
   const userCalorieGoal = 2000;
 
@@ -73,7 +78,12 @@ export default function Dashboard() {
   const fetchCartItems = async () => {
     setLoadingCart(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/cart?user_email=${encodeURIComponent(currentUserEmail)}`);
+      const token = await getToken();
+      const response = await fetch(`${API_BASE_URL}/api/cart?user_email=${encodeURIComponent(currentUserEmail)}`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
       if (response.ok) {
         const data = await response.json();
         if (Array.isArray(data) && data.length > 0) setCartItems(data);
@@ -85,7 +95,9 @@ export default function Dashboard() {
     }
   };
 
-  useEffect(() => { fetchCartItems(); }, []);
+  useEffect(() => { 
+    if (currentUserEmail) fetchCartItems(); 
+  }, [currentUserEmail]);
 
   const stats = useMemo(() => {
     return cartItems.reduce((acc, item) => {
@@ -101,7 +113,7 @@ export default function Dashboard() {
     }, { totalCalories: 0, totalProtein: 0, totalCarbs: 0, totalFat: 0, totalCost: 0, itemCount: 0 });
   }, [cartItems]);
 
-  const filteredCart = useMemo(() => {
+   const filteredCart = useMemo(() => {
     return cartItems.filter(item => {
       const matchesSearch = item.item_name.toLowerCase().includes(searchQuery.toLowerCase());
       if (activeFilter === "high-protein") return matchesSearch && (item.protein > 10);
@@ -118,9 +130,13 @@ export default function Dashboard() {
     setCartItems(prev => prev.map(i => i._id === id ? { ...i, quantity: newQty } : i));
 
     try {
-      await fetch(`${API_BASE_URL}/cart/${id}`, {
+      const token = await getToken();
+      await fetch(`${API_BASE_URL}/api/cart/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({ ...target, quantity: newQty })
       });
     } catch (e) { console.warn("Local sync pending API"); }
@@ -132,8 +148,28 @@ export default function Dashboard() {
     notify(`Removed ${itemToDelete?.item_name || 'item'} from cart`, "info");
 
     try {
-      await fetch(`${API_BASE_URL}/cart/${id}`, { method: "DELETE" });
+      const token = await getToken();
+      await fetch(`${API_BASE_URL}/api/cart/${id}`, { 
+        method: "DELETE",
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
     } catch (e) { console.warn("Deleted locally"); }
+  };
+
+  const handleEditClick = (item) => {
+    setEditingItem(item);
+    setManualForm({
+      item_name: item.item_name,
+      calories: item.calories || 100,
+      protein: item.protein || 5,
+      carbs: item.carbs || 15,
+      fat: item.fat || 3,
+      quantity: item.quantity || 1,
+      price: item.price || 99
+    });
+    setIsManualModalOpen(true);
   };
 
   const handleFileChange = (e) => {
@@ -167,9 +203,13 @@ export default function Dashboard() {
     setManualForm({ item_name: "", calories: 100, protein: 5, carbs: 15, fat: 3, quantity: 1, price: 99 });
 
     try {
-      await fetch(`${API_BASE_URL}/cart`, {
+      const token = await getToken();
+      await fetch(`${API_BASE_URL}/api/cart`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify(newItem)
       });
     } catch (err) { console.warn("Saved to local UI"); }
@@ -181,11 +221,15 @@ export default function Dashboard() {
       let resultData = presetData;
 
       if (!presetData && fileToScan) {
+        const token = await getToken();
         const formData = new FormData();
         formData.append("file", fileToScan);
 
-        const ocrResponse = await fetch(`${API_BASE_URL}/ai/scan-label`, {
+        const ocrResponse = await fetch(`${API_BASE_URL}/api/ai/scan`, {
           method: "POST",
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
           body: formData,
         });
 
@@ -262,6 +306,7 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-3">
+            <span className="text-xs text-[#6e8275] hidden sm:inline">{currentUserEmail}</span>
             <button 
               onClick={() => setIsScanModalOpen(true)}
               className="px-4 py-2 bg-[#0f4229] text-white rounded-xl text-xs font-semibold hover:bg-[#0b3320] transition flex items-center gap-2 shadow-sm"
@@ -280,7 +325,7 @@ export default function Dashboard() {
         <div className="rounded-3xl bg-[#edf3e7] border border-[#d8e5d0] p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-xl">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-[#0f4229] text-xs font-semibold border border-[#d8e5d0]">
-              <Zap className="w-3.5 h-3.5 fill-[#0f4229]" /> Gemini 3.8 Flash Vision Enabled
+              <Zap className="w-3.5 h-3.5 fill-[#0f4229]" /> Gemini Vision Enabled
             </div>
             <h1 className="text-3xl font-serif text-[#0f4229]">Your Grocery Kitchen</h1>
             <p className="text-[#4a5e52] text-sm leading-relaxed">
@@ -289,7 +334,7 @@ export default function Dashboard() {
           </div>
 
           <button 
-            onClick={() => { setEditingItem(null); setIsManualModalOpen(true); }}
+            onClick={() => { setEditingItem(null); setManualForm({ item_name: "", calories: 100, protein: 5, carbs: 15, fat: 3, quantity: 1, price: 99 }); setIsManualModalOpen(true); }}
             className="px-5 py-3 rounded-xl bg-white hover:bg-slate-50 text-[#0f4229] font-semibold text-sm border border-[#d8e5d0] transition flex items-center gap-2 shadow-sm"
           >
             <Plus className="w-4 h-4" /> Add Item Manually
@@ -358,33 +403,57 @@ export default function Dashboard() {
           </div>
 
           <div className="space-y-3">
-            {filteredCart.map((item) => (
-              <div key={item._id} className="p-4 rounded-2xl bg-[#f8f6ee]/60 border border-[#e2ebd9] flex items-center justify-between gap-4">
-                <div>
-                  <h3 className="font-semibold text-[#0f4229]">{item.item_name}</h3>
-                  <p className="text-xs text-[#6e8275]">
-                    {item.calories} kcal | P: {item.protein}g | C: {item.carbs}g | F: {item.fat}g
-                  </p>
+            {filteredCart.length === 0 ? (
+              <p className="text-center py-8 text-sm text-[#6e8275]">No items found in your cart.</p>
+            ) : (
+              filteredCart.map((item) => (
+                <div key={item._id} className="p-4 rounded-2xl bg-[#f8f6ee]/60 border border-[#e2ebd9] flex items-center justify-between gap-4">
+                  <div>
+                    <h3 className="font-semibold text-[#0f4229]">{item.item_name}</h3>
+                    <p className="text-xs text-[#6e8275]">
+                      {item.calories} kcal | P: {item.protein}g | C: {item.carbs}g | F: {item.fat}g
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center border border-[#d8e5d0] bg-white rounded-lg">
+                      <button 
+                        onClick={() => handleQuantityChange(item._id, -1)} 
+                        className="p-1 hover:bg-[#f8f6ee] text-[#0f4229]"
+                      >
+                        <Minus size={14} />
+                      </button>
+                      <span className="px-2 text-xs font-semibold">{item.quantity || 1}</span>
+                      <button 
+                        onClick={() => handleQuantityChange(item._id, 1)} 
+                        className="p-1 hover:bg-[#f8f6ee] text-[#0f4229]"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
+
+                    <span className="font-bold text-[#0f4229]">₱{(item.price || 99) * (item.quantity || 1)}</span>
+                    
+                    <button onClick={() => handleEditClick(item)} className="text-[#0f4229] hover:text-[#0b3320] p-1">
+                      <Edit size={16} />
+                    </button>
+
+                    <button onClick={() => handleDeleteItem(item._id)} className="text-rose-600 hover:text-rose-800 p-1">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <span className="font-bold text-[#0f4229]">₱{item.price * (item.quantity || 1)}</span>
-                  <button onClick={() => handleDeleteItem(item._id)} className="text-rose-600 hover:text-rose-800 p-1">
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
       </main>
 
-      {/* Complete AI Label Scanner Modal with Upload Area */}
+       {/* AI Label Scanner Modal */}
       {isScanModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-[#d8e5d0] w-full max-w-lg rounded-3xl p-6 space-y-5 shadow-2xl relative">
             
-            {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-[#e2ebd9] pb-3">
               <div className="flex items-center gap-2">
                 <div className="p-2 rounded-xl bg-[#e5eedb] text-[#0f4229]">
@@ -400,17 +469,14 @@ export default function Dashboard() {
               </button>
             </div>
 
-            {/* Modal Body */}
             {isScanning ? (
               <div className="py-12 text-center space-y-3">
                 <RefreshCw className="w-10 h-10 text-[#0f4229] animate-spin mx-auto" />
-                <p className="text-sm font-semibold text-[#0f4229]">Processing label with Gemini 3.8 Flash...</p>
+                <p className="text-sm font-semibold text-[#0f4229]">Processing label with Gemini Vision...</p>
                 <p className="text-xs text-[#6e8275]">Extracting calories and macronutrients</p>
               </div>
             ) : (
               <div className="space-y-4">
-                
-                {/* Upload Image Box */}
                 <label className="block w-full border-2 border-dashed border-[#d8e5d0] hover:border-[#0f4229] bg-[#f8f6ee]/60 rounded-2xl p-6 text-center cursor-pointer transition space-y-2">
                   {previewUrl ? (
                     <div className="space-y-2">
@@ -431,7 +497,6 @@ export default function Dashboard() {
                   <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
                 </label>
 
-                {/* Scan Selected File Button */}
                 {scanFile && (
                   <button
                     onClick={() => handleScanExecute(scanFile)}
@@ -441,7 +506,6 @@ export default function Dashboard() {
                   </button>
                 )}
 
-                {/* Preset Options */}
                 <div>
                   <p className="text-xs font-semibold text-[#6e8275] mb-2">Or test with a sample preset:</p>
                   <div className="grid grid-cols-2 gap-2">
