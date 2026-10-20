@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import List, Optional
 
+
 class UserProfile(BaseModel):
     age: Optional[int] = None
     height: Optional[float] = None
