@@ -1,623 +1,484 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useUser, useAuth } from '@clerk/clerk-react';
-import { 
-  Camera, 
-  ShoppingBag, 
-  Plus, 
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useUser } from '@clerk/clerk-react'
+import {
+  ArrowRight,
+  Clock,
+  Leaf,
+  Loader2,
+  Lock,
   Minus,
-  Trash2, 
-  Edit, 
-  Search, 
-  Sparkles, 
-  Flame, 
-  CheckCircle2, 
-  AlertCircle, 
-  Upload, 
-  X, 
-  RefreshCw, 
-  Zap
-} from 'lucide-react';
+  Plus,
+  ScanLine,
+  Scale,
+  ShoppingBasket,
+  Trash2,
+  Upload,
+  FileImage,
+  CornerLeftDown,
+} from 'lucide-react'
+import AppHeader from '../components/AppHeader'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API_BASE_URL = `${
+  import.meta.env.VITE_API_URL || 'https://nutrigo-ai-backend.onrender.com'
+}/api`
 
-const SAMPLE_PRESETS = [
-  {
-    name: "Milo Energy Drink (20g)",
-    data: { item_name: "MILO Powder", calories: 80, protein: 2.5, carbs: 11.9, fat: 1.9 }
-  },
-  {
-    name: "Whole Milk (250ml)",
-    data: { item_name: "Whole Milk 250ml", calories: 150, protein: 8.0, carbs: 12.0, fat: 8.0 }
-  },
-  {
-    name: "Greek Yogurt (170g)",
-    data: { item_name: "Plain Greek Yogurt", calories: 130, protein: 17.0, carbs: 6.0, fat: 4.0 }
-  },
-  {
-    name: "Rolled Oats (50g)",
-    data: { item_name: "Rolled Oats 50g", calories: 190, protein: 7.0, carbs: 32.0, fat: 3.5 }
-  }
-];
+const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0)
 
 export default function Dashboard() {
-  const { user } = useUser();
-  const { getToken } = useAuth();
+  const { user } = useUser()
+  const email = user?.primaryEmailAddress?.emailAddress || ''
 
-  const currentUserEmail = user?.primaryEmailAddress?.emailAddress || "guest@nutrigo.ai";
-  const userBudgetGoal = 5000;
-  const userCalorieGoal = 2000;
+  const [items, setItems] = useState([])
+  const [loadingCart, setLoadingCart] = useState(true)
+  const [cartError, setCartError] = useState('')
 
-  const [cartItems, setCartItems] = useState([
-    { _id: "1", item_name: "MILO Powder", calories: 80, protein: 2.5, carbs: 11.9, fat: 1.9, quantity: 2, price: 120 },
-    { _id: "2", item_name: "Rolled Oats 500g", calories: 380, protein: 13.0, carbs: 68.0, fat: 6.5, quantity: 1, price: 215 },
-    { _id: "3", item_name: "Greek Yogurt", calories: 130, protein: 17.0, carbs: 6.0, fat: 4.0, quantity: 3, price: 180 }
-  ]);
-  
-  const [loadingCart, setLoadingCart] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState("all");
-  const [isScanModalOpen, setIsScanModalOpen] = useState(false);
-  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
-  const [notification, setNotification] = useState(null);
+  const [file, setFile] = useState(null)
+  const [previewUrl, setPreviewUrl] = useState(null)
+  const [scanning, setScanning] = useState(false)
+  const [scanError, setScanError] = useState('')
+  const [dragOver, setDragOver] = useState(false)
+  const inputRef = useRef(null)
 
-  const [manualForm, setManualForm] = useState({
-    item_name: "", calories: 100, protein: 5, carbs: 15, fat: 3, quantity: 1, price: 99
-  });
-
-  // AI Scanner Modal State
-  const [scanFile, setScanFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
-  const [isScanning, setIsScanning] = useState(false);
-
-  const notify = (message, type = "success") => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 4000);
-  };
-
-  const fetchCartItems = async () => {
-    setLoadingCart(true);
+  // Calorie limit comes from the Profile page (localStorage for now)
+  const calorieLimit = useMemo(() => {
+    if (!user) return 0
     try {
-      const token = await getToken();
-      const response = await fetch(`${API_BASE_URL}/api/cart?user_email=${encodeURIComponent(currentUserEmail)}`, {
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (Array.isArray(data) && data.length > 0) setCartItems(data);
-      }
-    } catch (error) {
-      console.warn("Using local cart fallback:", error);
+      const raw = localStorage.getItem(`nutrigo_profile_${user.id}`)
+      return raw ? num(JSON.parse(raw).calorieLimit) : 0
+    } catch {
+      return 0
+    }
+  }, [user])
+
+  const fetchCart = useCallback(async () => {
+    if (!email) return
+    setLoadingCart(true)
+    setCartError('')
+    try {
+      const res = await fetch(`${API_BASE_URL}/cart?user_email=${encodeURIComponent(email)}`)
+      if (!res.ok) throw new Error('Could not load your cart.')
+      const data = await res.json()
+      setItems(Array.isArray(data) ? data : [])
+    } catch (err) {
+      setCartError(err.message || 'Could not load your cart.')
     } finally {
-      setLoadingCart(false);
+      setLoadingCart(false)
     }
-  };
+  }, [email])
 
-  useEffect(() => { 
-    if (currentUserEmail) fetchCartItems(); 
-  }, [currentUserEmail]);
+  useEffect(() => {
+    fetchCart()
+  }, [fetchCart])
 
-  const stats = useMemo(() => {
-    return cartItems.reduce((acc, item) => {
-      const qty = item.quantity || 1;
-      const price = item.price || (item.calories ? Math.round(item.calories * 1.2) : 50);
-      acc.totalCalories += (item.calories || 0) * qty;
-      acc.totalProtein += (item.protein || 0) * qty;
-      acc.totalCarbs += (item.carbs || 0) * qty;
-      acc.totalFat += (item.fat || 0) * qty;
-      acc.totalCost += price * qty;
-      acc.itemCount += qty;
-      return acc;
-    }, { totalCalories: 0, totalProtein: 0, totalCarbs: 0, totalFat: 0, totalCost: 0, itemCount: 0 });
-  }, [cartItems]);
-
-   const filteredCart = useMemo(() => {
-    return cartItems.filter(item => {
-      const matchesSearch = item.item_name.toLowerCase().includes(searchQuery.toLowerCase());
-      if (activeFilter === "high-protein") return matchesSearch && (item.protein > 10);
-      if (activeFilter === "low-carb") return matchesSearch && (item.carbs < 15);
-      return matchesSearch;
-    });
-  }, [cartItems, searchQuery, activeFilter]);
-
-  const handleQuantityChange = async (id, delta) => {
-    const target = cartItems.find(i => i._id === id);
-    if (!target) return;
-
-    const newQty = Math.max(1, (target.quantity || 1) + delta);
-    setCartItems(prev => prev.map(i => i._id === id ? { ...i, quantity: newQty } : i));
-
-    try {
-      const token = await getToken();
-      await fetch(`${API_BASE_URL}/api/cart/${id}`, {
-        method: "PUT",
-        headers: { 
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({ ...target, quantity: newQty })
-      });
-    } catch (e) { console.warn("Local sync pending API"); }
-  };
-
-  const handleDeleteItem = async (id) => {
-    const itemToDelete = cartItems.find(i => i._id === id);
-    setCartItems(prev => prev.filter(i => i._id !== id));
-    notify(`Removed ${itemToDelete?.item_name || 'item'} from cart`, "info");
-
-    try {
-      const token = await getToken();
-      await fetch(`${API_BASE_URL}/api/cart/${id}`, { 
-        method: "DELETE",
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        }
-      });
-    } catch (e) { console.warn("Deleted locally"); }
-  };
-
-  const handleEditClick = (item) => {
-    setEditingItem(item);
-    setManualForm({
-      item_name: item.item_name,
-      calories: item.calories || 100,
-      protein: item.protein || 5,
-      carbs: item.carbs || 15,
-      fat: item.fat || 3,
-      quantity: item.quantity || 1,
-      price: item.price || 99
-    });
-    setIsManualModalOpen(true);
-  };
-
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setScanFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
     }
-  };
+  }, [previewUrl])
 
-  const handleSaveManualItem = async (e) => {
-    e.preventDefault();
-    if (!manualForm.item_name.trim()) return;
+  const totalCalories = useMemo(
+    () => items.reduce((sum, i) => sum + num(i.calories) * (num(i.quantity) || 1), 0),
+    [items],
+  )
+  const itemCount = useMemo(
+    () => items.reduce((sum, i) => sum + (num(i.quantity) || 1), 0),
+    [items],
+  )
+  const overLimit = calorieLimit > 0 && totalCalories > calorieLimit
 
-    const newItem = {
-      _id: editingItem ? editingItem._id : Date.now().toString(),
-      user_email: currentUserEmail,
-      ...manualForm
-    };
-
-    if (editingItem) {
-      setCartItems(prev => prev.map(i => i._id === editingItem._id ? newItem : i));
-      notify(`Updated ${newItem.item_name}`);
-    } else {
-      setCartItems(prev => [newItem, ...prev]);
-      notify(`Added ${newItem.item_name} to cart`);
+  const pickFile = (f) => {
+    if (!f) return
+    if (!f.type.startsWith('image/')) {
+      setScanError('Please choose an image file.')
+      return
     }
+    setScanError('')
+    setFile(f)
+    setPreviewUrl(URL.createObjectURL(f))
+  }
 
-    setIsManualModalOpen(false);
-    setEditingItem(null);
-    setManualForm({ item_name: "", calories: 100, protein: 5, carbs: 15, fat: 3, quantity: 1, price: 99 });
-
+  const handleScan = async () => {
+    if (!file || !email) return
+    setScanning(true)
+    setScanError('')
     try {
-      const token = await getToken();
-      await fetch(`${API_BASE_URL}/api/cart`, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify(newItem)
-      });
-    } catch (err) { console.warn("Saved to local UI"); }
-  };
+      const formData = new FormData()
+      formData.append('file', file)
+      const ocr = await fetch(`${API_BASE_URL}/ai/scan-label`, {
+        method: 'POST',
+        body: formData,
+      })
+      if (!ocr.ok) throw new Error('We could not read that label. Try a clearer photo.')
+      const scanned = await ocr.json()
 
-  const handleScanExecute = async (fileToScan, presetData = null) => {
-    setIsScanning(true);
-    try {
-      let resultData = presetData;
-
-      if (!presetData && fileToScan) {
-        const token = await getToken();
-        const formData = new FormData();
-        formData.append("file", fileToScan);
-
-        const ocrResponse = await fetch(`${API_BASE_URL}/api/ai/scan`, {
-          method: "POST",
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-          },
-          body: formData,
-        });
-
-        if (ocrResponse.ok) {
-          resultData = await ocrResponse.json();
-        } else {
-          resultData = {
-            item_name: fileToScan.name.split('.')[0].replace(/[-_]/g, ' ') || "Scanned Nutrition Product",
-            calories: Math.floor(Math.random() * 200) + 100,
-            protein: Math.floor(Math.random() * 15) + 3,
-            carbs: Math.floor(Math.random() * 30) + 10,
-            fat: Math.floor(Math.random() * 10) + 2
-          };
-        }
+      const payload = {
+        user_email: email,
+        item_name: scanned.item_name || 'Scanned item',
+        calories: scanned.calories ?? 0,
+        protein: scanned.protein ?? 0,
+        carbs: scanned.carbs ?? 0,
+        fat: scanned.fat ?? 0,
+        quantity: 1,
       }
+      const add = await fetch(`${API_BASE_URL}/cart`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!add.ok) throw new Error('Could not add the item to your cart.')
 
-      setTimeout(() => {
-        setIsScanning(false);
-        setIsScanModalOpen(false);
-        setScanFile(null);
-        setPreviewUrl(null);
-
-        if (resultData) {
-          const newCartItem = {
-            _id: Date.now().toString(),
-            user_email: currentUserEmail,
-            item_name: resultData.item_name || "Scanned Food Item",
-            calories: resultData.calories || 120,
-            protein: resultData.protein || 5,
-            carbs: resultData.carbs || 15,
-            fat: resultData.fat || 3,
-            quantity: 1,
-            price: Math.round((resultData.calories || 100) * 1.5)
-          };
-
-          setCartItems(prev => [newCartItem, ...prev]);
-          notify(`Scanned & Added "${newCartItem.item_name}"!`, "success");
-        }
-      }, 1200);
-
-    } catch (error) {
-      setIsScanning(false);
-      notify("Scan failed. Try a preset or upload again.", "error");
+      setFile(null)
+      setPreviewUrl(null)
+      await fetchCart()
+    } catch (err) {
+      setScanError(err.message || 'Something went wrong.')
+    } finally {
+      setScanning(false)
     }
-  };
+  }
+
+  const changeQty = async (item, delta) => {
+    const qty = Math.max(1, (num(item.quantity) || 1) + delta)
+    const previous = items
+    setItems((prev) => prev.map((i) => (i._id === item._id ? { ...i, quantity: qty } : i)))
+    try {
+      const res = await fetch(`${API_BASE_URL}/cart/${item._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...item, quantity: qty }),
+      })
+      if (!res.ok) throw new Error()
+    } catch {
+      setItems(previous)
+    }
+  }
+
+  const removeItem = async (item) => {
+    const previous = items
+    setItems((prev) => prev.filter((i) => i._id !== item._id))
+    try {
+      const res = await fetch(`${API_BASE_URL}/cart/${item._id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error()
+    } catch {
+      setItems(previous)
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-[#f8f6ee] text-[#1c2e24] font-sans">
-      
-      {/* Toast Notification */}
-      {notification && (
-        <div className={`fixed top-5 right-5 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border transition-all ${
-          notification.type === 'error' 
-            ? 'bg-rose-50 border-rose-200 text-rose-800' 
-            : 'bg-[#edf3e7] border-[#d8e5d0] text-[#0f4229]'
-        }`}>
-          {notification.type === 'error' ? <AlertCircle className="w-5 h-5 text-rose-600" /> : <CheckCircle2 className="w-5 h-5 text-[#0f4229]" />}
-          <span className="font-medium text-sm">{notification.message}</span>
-        </div>
-      )}
+    <div className="min-h-screen bg-cream text-ink">
+      <AppHeader showProfile showStatus />
 
-      {/* Header */}
-      <header className="sticky top-0 z-30 bg-[#f8f6ee]/90 backdrop-blur-md border-b border-[#d8e5d0] px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-[#0f4229] flex items-center justify-center text-white font-serif font-bold text-lg">
-              n
-            </div>
-            <div>
-              <span className="font-serif font-bold text-xl text-[#0f4229]">nutrigo</span>
-              <span className="ml-1.5 text-[10px] bg-[#e5eedb] text-[#0f4229] px-1.5 py-0.5 rounded font-semibold">AI</span>
-            </div>
-          </div>
+      <main className="max-w-6xl mx-auto px-6 py-10">
+        {/* Hero */}
+        <p className="flex items-center gap-2 text-[10px] tracking-[0.2em] font-semibold text-muted">
+          <span className="w-2 h-2 rounded-full bg-[#f08a5d]" />
+          YOUR GROCERY SIDEKICK
+        </p>
 
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-[#6e8275] hidden sm:inline">{currentUserEmail}</span>
-            <button 
-              onClick={() => setIsScanModalOpen(true)}
-              className="px-4 py-2 bg-[#0f4229] text-white rounded-xl text-xs font-semibold hover:bg-[#0b3320] transition flex items-center gap-2 shadow-sm"
+        <div className="mt-4 flex items-start justify-between gap-6">
+          <div>
+            <h1
+              className="font-serif font-bold text-5xl md:text-6xl leading-[0.98]"
+              style={{ letterSpacing: '-0.04em' }}
             >
-              <Camera className="w-4 h-4" /> Scan Label
-            </button>
-          </div>
-
-        </div>
-      </header>
-
-      {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
-        
-        {/* Banner */}
-        <div className="rounded-3xl bg-[#edf3e7] border border-[#d8e5d0] p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-xl">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-[#0f4229] text-xs font-semibold border border-[#d8e5d0]">
-              <Zap className="w-3.5 h-3.5 fill-[#0f4229]" /> Gemini Vision Enabled
-            </div>
-            <h1 className="text-3xl font-serif text-[#0f4229]">Your Grocery Kitchen</h1>
-            <p className="text-[#4a5e52] text-sm leading-relaxed">
-              Scan labels, manage your food allowance, and keep track of calories effortlessly.
+              Let’s make this
+              <br />
+              <span className="italic text-brand">label make sense.</span>
+            </h1>
+            <p className="mt-4 text-xs text-muted">
+              Drop in a nutrition label photo, see its details, then add it to your cart.
             </p>
           </div>
 
-          <button 
-            onClick={() => { setEditingItem(null); setManualForm({ item_name: "", calories: 100, protein: 5, carbs: 15, fat: 3, quantity: 1, price: 99 }); setIsManualModalOpen(true); }}
-            className="px-5 py-3 rounded-xl bg-white hover:bg-slate-50 text-[#0f4229] font-semibold text-sm border border-[#d8e5d0] transition flex items-center gap-2 shadow-sm"
-          >
-            <Plus className="w-4 h-4" /> Add Item Manually
-          </button>
+          <div className="hidden md:flex w-28 h-28 shrink-0 rounded-full border border-dashed border-[#cfd8b8] items-center justify-center">
+            <div className="flex items-center gap-1.5">
+              <div className="w-9 h-9 rounded-full bg-[#e6ecd5] flex items-center justify-center">
+                <Leaf className="w-4 h-4 text-brand" />
+              </div>
+              <p className="text-[7px] leading-tight font-bold tracking-widest text-muted">
+                SHOP
+                <br />
+                WITH
+                <br />
+                CLARITY
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* Quick Stats Overview */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          
-          <div className="bg-white border border-[#e2ebd9] rounded-2xl p-5 space-y-2">
-            <span className="text-xs font-semibold text-[#6e8275] uppercase">Calories</span>
-            <div className="flex items-baseline justify-between">
-              <span className="text-2xl font-serif text-[#0f4229]">{stats.totalCalories}</span>
-              <span className="text-xs text-[#6e8275]">/ {userCalorieGoal} kcal</span>
+        <div className="mt-10 grid lg:grid-cols-2 gap-6 items-start">
+          {/* Scan card */}
+          <section className="bg-card rounded-3xl border border-line shadow-sm p-6">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#e6ecd5] flex items-center justify-center">
+                  <ScanLine className="w-5 h-5 text-brand" />
+                </div>
+                <div>
+                  <p className="text-[9px] tracking-widest font-semibold text-muted">
+                    THE LABEL READER
+                  </p>
+                  <h2 className="font-serif font-bold text-2xl">Scan a product</h2>
+                </div>
+              </div>
+              <p className="font-serif text-sm text-muted">
+                <span className="font-bold text-ink">01</span> / 02
+              </p>
             </div>
-            <div className="w-full h-2 bg-[#edf3e7] rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-[#0f4229] rounded-full"
-                style={{ width: `${Math.min(100, (stats.totalCalories / userCalorieGoal) * 100)}%` }}
-              ></div>
-            </div>
-          </div>
 
-          <div className="bg-white border border-[#e2ebd9] rounded-2xl p-5 space-y-2">
-            <span className="text-xs font-semibold text-[#6e8275] uppercase">Budget Spent</span>
-            <div className="flex items-baseline justify-between">
-              <span className="text-2xl font-serif text-[#0f4229]">₱{stats.totalCost}</span>
-              <span className="text-xs text-[#6e8275]">/ ₱{userBudgetGoal}</span>
-            </div>
-            <div className="w-full h-2 bg-[#edf3e7] rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-[#c26d4f] rounded-full"
-                style={{ width: `${Math.min(100, (stats.totalCost / userBudgetGoal) * 100)}%` }}
-              ></div>
-            </div>
-          </div>
-
-          <div className="bg-white border border-[#e2ebd9] rounded-2xl p-5 space-y-2">
-            <span className="text-xs font-semibold text-[#6e8275] uppercase">Protein</span>
-            <span className="block text-2xl font-serif text-[#0f4229]">{stats.totalProtein.toFixed(1)}g</span>
-            <span className="text-xs text-[#6e8275]">Carbs: {stats.totalCarbs.toFixed(0)}g | Fat: {stats.totalFat.toFixed(0)}g</span>
-          </div>
-
-          <div className="bg-white border border-[#e2ebd9] rounded-2xl p-5 space-y-2">
-            <span className="text-xs font-semibold text-[#6e8275] uppercase">Total Items</span>
-            <span className="block text-2xl font-serif text-[#0f4229]">{stats.itemCount}</span>
-            <span className="text-xs text-[#0f4229] font-medium">Cart status active</span>
-          </div>
-
-        </div>
-
-        {/* Cart List */}
-        <div className="bg-white rounded-3xl border border-[#e2ebd9] p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <h2 className="text-xl font-serif text-[#0f4229]">Cart Items</h2>
-            <div className="relative w-full sm:w-64">
-              <Search className="w-4 h-4 text-[#6e8275] absolute left-3 top-1/2 -translate-y-1/2" />
-              <input 
-                type="text" 
-                placeholder="Search items..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[#f8f6ee] border border-[#d8e5d0] rounded-xl pl-9 pr-3 py-1.5 text-sm text-[#1c2e24] focus:outline-none"
+            <div
+              onDragOver={(e) => {
+                e.preventDefault()
+                setDragOver(true)
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault()
+                setDragOver(false)
+                pickFile(e.dataTransfer.files?.[0])
+              }}
+              onClick={() => inputRef.current?.click()}
+              className={`mt-6 h-64 rounded-2xl border border-dashed cursor-pointer flex flex-col items-center justify-center text-center transition ${
+                dragOver ? 'border-brand bg-[#e6ecd5]/50' : 'border-[#cfd8b8] bg-white/40'
+              }`}
+            >
+              <input
+                ref={inputRef}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => pickFile(e.target.files?.[0])}
               />
-            </div>
-          </div>
 
-          <div className="space-y-3">
-            {filteredCart.length === 0 ? (
-              <p className="text-center py-8 text-sm text-[#6e8275]">No items found in your cart.</p>
-            ) : (
-              filteredCart.map((item) => (
-                <div key={item._id} className="p-4 rounded-2xl bg-[#f8f6ee]/60 border border-[#e2ebd9] flex items-center justify-between gap-4">
+              {previewUrl ? (
+                <div className="space-y-2 px-4">
+                  <img
+                    src={previewUrl}
+                    alt="Label preview"
+                    className="max-h-44 mx-auto rounded-xl object-contain"
+                  />
+                  <p className="text-[11px] font-semibold text-brand-dark">
+                    Click to choose a different photo
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="w-12 h-12 rounded-xl bg-[#e6ecd5] flex items-center justify-center">
+                    <Upload className="w-5 h-5 text-brand" />
+                  </div>
+                  <p className="mt-4 text-sm font-semibold">Choose a label photo</p>
+                  <p className="mt-1 text-[10px] text-muted">
+                    Use a clear image of the nutrition facts panel.
+                  </p>
+                  <p className="mt-3 inline-flex items-center gap-1 text-[10px] font-semibold">
+                    Browse photos <ArrowRight className="w-3 h-3" />
+                  </p>
+                  <p className="mt-1 inline-flex items-center gap-1 text-[9px] text-muted">
+                    <FileImage className="w-3 h-3" /> Image files
+                  </p>
+                </>
+              )}
+            </div>
+
+            {scanError && (
+              <p className="mt-4 text-xs text-rose-700 bg-rose-50 border border-rose-100 rounded-xl p-3">
+                {scanError}
+              </p>
+            )}
+
+            <button
+              onClick={handleScan}
+              disabled={!file || scanning}
+              className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-brand-dark py-3.5 text-sm font-semibold text-white transition hover:bg-brand disabled:bg-[#cfdccf] disabled:text-white/80 disabled:cursor-not-allowed"
+            >
+              {scanning ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Reading your label…
+                </>
+              ) : (
+                <>
+                  <ScanLine className="w-4 h-4" /> Read this label <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+
+            <p className="mt-4 flex items-center gap-2 text-[10px] text-muted">
+              <Lock className="w-3.5 h-3.5" />
+              NutriGo reads the label photo you choose. We don’t fill in missing values.
+            </p>
+          </section>
+
+          {/* Cart card */}
+          <section className="bg-card rounded-3xl border border-line shadow-sm overflow-hidden">
+            <div className="p-6 pb-4">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#fbe3d6] flex items-center justify-center">
+                    <ShoppingBasket className="w-5 h-5 text-[#c26d4f]" />
+                  </div>
                   <div>
-                    <h3 className="font-semibold text-[#0f4229]">{item.item_name}</h3>
-                    <p className="text-xs text-[#6e8275]">
-                      {item.calories} kcal | P: {item.protein}g | C: {item.carbs}g | F: {item.fat}g
+                    <p className="text-[9px] tracking-widest font-semibold text-muted">
+                      YOUR SHOPPING LIST
                     </p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center border border-[#d8e5d0] bg-white rounded-lg">
-                      <button 
-                        onClick={() => handleQuantityChange(item._id, -1)} 
-                        className="p-1 hover:bg-[#f8f6ee] text-[#0f4229]"
-                      >
-                        <Minus size={14} />
-                      </button>
-                      <span className="px-2 text-xs font-semibold">{item.quantity || 1}</span>
-                      <button 
-                        onClick={() => handleQuantityChange(item._id, 1)} 
-                        className="p-1 hover:bg-[#f8f6ee] text-[#0f4229]"
-                      >
-                        <Plus size={14} />
-                      </button>
-                    </div>
-
-                    <span className="font-bold text-[#0f4229]">₱{(item.price || 99) * (item.quantity || 1)}</span>
-                    
-                    <button onClick={() => handleEditClick(item)} className="text-[#0f4229] hover:text-[#0b3320] p-1">
-                      <Edit size={16} />
-                    </button>
-
-                    <button onClick={() => handleDeleteItem(item._id)} className="text-rose-600 hover:text-rose-800 p-1">
-                      <Trash2 size={16} />
-                    </button>
+                    <h2 className="font-serif font-bold text-2xl flex items-center gap-2">
+                      Grocery cart
+                      <span className="text-[10px] font-sans font-semibold bg-[#ecebe0] text-muted rounded-md px-1.5 py-0.5">
+                        {itemCount}
+                      </span>
+                    </h2>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
-        </div>
-
-      </main>
-
-       {/* AI Label Scanner Modal */}
-      {isScanModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-[#d8e5d0] w-full max-w-lg rounded-3xl p-6 space-y-5 shadow-2xl relative">
-            
-            <div className="flex items-center justify-between border-b border-[#e2ebd9] pb-3">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-[#e5eedb] text-[#0f4229]">
-                  <Camera className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-serif font-bold text-lg text-[#0f4229]">AI Label Scanner</h3>
-                  <p className="text-xs text-[#6e8275]">Upload photo or pick a sample preset</p>
-                </div>
+                <p className="flex items-center gap-1.5 text-[9px] text-muted mt-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-brand" />
+                  Saved to your account
+                </p>
               </div>
-              <button onClick={() => setIsScanModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1">
-                <X size={20} />
-              </button>
             </div>
 
-            {isScanning ? (
-              <div className="py-12 text-center space-y-3">
-                <RefreshCw className="w-10 h-10 text-[#0f4229] animate-spin mx-auto" />
-                <p className="text-sm font-semibold text-[#0f4229]">Processing label with Gemini Vision...</p>
-                <p className="text-xs text-[#6e8275]">Extracting calories and macronutrients</p>
+            {/* Calorie estimate */}
+            <div
+              className={`mx-4 rounded-2xl border p-4 ${
+                overLimit ? 'bg-rose-50 border-rose-200' : 'bg-sand border-[#ecdfb8]'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <p className="flex items-center gap-2 text-[10px] tracking-widest font-semibold">
+                  <Scale className="w-3.5 h-3.5" /> CART CALORIE ESTIMATE
+                </p>
+                <p className="text-right shrink-0">
+                  <span className="font-serif font-bold text-2xl">{Math.round(totalCalories)}</span>
+                  <span className="ml-1.5 text-[9px] text-muted">
+                    {calorieLimit > 0 ? `/ ${calorieLimit} kcal` : 'estimated kcal'}
+                  </span>
+                </p>
               </div>
-            ) : (
-              <div className="space-y-4">
-                <label className="block w-full border-2 border-dashed border-[#d8e5d0] hover:border-[#0f4229] bg-[#f8f6ee]/60 rounded-2xl p-6 text-center cursor-pointer transition space-y-2">
-                  {previewUrl ? (
-                    <div className="space-y-2">
-                      <img src={previewUrl} alt="Preview" className="max-h-40 rounded-xl mx-auto object-contain" />
-                      <p className="text-xs text-[#0f4229] font-medium">Click to change photo</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="w-10 h-10 rounded-full bg-[#e5eedb] flex items-center justify-center text-[#0f4229] mx-auto">
-                        <Upload className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-[#0f4229]">Upload nutrition label photo</p>
-                        <p className="text-xs text-[#6e8275] mt-0.5">Supports PNG, JPG, WEBP</p>
-                      </div>
-                    </>
-                  )}
-                  <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
-                </label>
 
-                {scanFile && (
+              {overLimit ? (
+                <p className="mt-2 text-[11px] text-rose-700">
+                  Heads up: your cart is over your {calorieLimit} kcal trip limit.
+                </p>
+              ) : (
+                <p className="mt-2 text-[10px] text-[#6b5a1e] leading-relaxed">
+                  We estimate from each item’s calories × quantity.{' '}
+                  {calorieLimit > 0
+                    ? 'You’ll see a heads-up if you go over your limit.'
+                    : 'Set your own trip alert to get a heads-up as you shop.'}
+                </p>
+              )}
+
+              {calorieLimit === 0 && (
+                <Link
+                  to="/profile"
+                  className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-semibold hover:text-brand"
+                >
+                  Set a shopping limit <ArrowRight className="w-3 h-3" />
+                </Link>
+              )}
+            </div>
+
+            {/* List */}
+            <div className="p-4 min-h-[16rem]">
+              {loadingCart ? (
+                <div className="space-y-3">
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className="h-16 rounded-2xl bg-[#f1efe4] animate-pulse" />
+                  ))}
+                </div>
+              ) : cartError ? (
+                <div className="text-center py-10">
+                  <p className="text-xs text-rose-700">{cartError}</p>
                   <button
-                    onClick={() => handleScanExecute(scanFile)}
-                    className="w-full py-3 rounded-xl bg-[#0f4229] hover:bg-[#0b3320] text-white font-semibold text-sm transition shadow-sm flex items-center justify-center gap-2"
+                    onClick={fetchCart}
+                    className="mt-3 text-[11px] font-semibold text-brand-dark underline"
                   >
-                    <Camera className="w-4 h-4" /> Scan Uploaded Image
+                    Try again
                   </button>
-                )}
-
-                <div>
-                  <p className="text-xs font-semibold text-[#6e8275] mb-2">Or test with a sample preset:</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {SAMPLE_PRESETS.map((preset, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleScanExecute(null, preset.data)}
-                        className="p-3 text-left rounded-xl bg-[#edf3e7] hover:bg-[#e5eedb] text-xs text-[#0f4229] font-medium transition"
-                      >
-                        + {preset.name}
-                      </button>
-                    ))}
-                  </div>
                 </div>
+              ) : items.length === 0 ? (
+                <div className="text-center py-10">
+                  <div className="w-12 h-12 mx-auto rounded-xl bg-[#e6ecd5] flex items-center justify-center">
+                    <ShoppingBasket className="w-5 h-5 text-brand" />
+                  </div>
+                  <h3 className="mt-4 font-serif font-bold text-lg">Your cart is ready</h3>
+                  <p className="mt-1 text-[10px] text-muted max-w-[16rem] mx-auto leading-relaxed">
+                    Scan a product label and add the item here. Your list will build as you shop.
+                  </p>
+                  <button
+                    onClick={() => inputRef.current?.click()}
+                    className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[#f1efe4] px-3 py-1.5 text-[10px] font-semibold hover:bg-[#e9e6d6]"
+                  >
+                    Start with a photo <CornerLeftDown className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <ul className="space-y-3">
+                  {items.map((item) => {
+                    const qty = num(item.quantity) || 1
+                    return (
+                      <li
+                        key={item._id}
+                        className="rounded-2xl border border-line bg-white/60 p-4 flex items-center justify-between gap-3"
+                      >
+                        <div className="min-w-0">
+                          <h4 className="text-sm font-semibold truncate">{item.item_name}</h4>
+                          <p className="mt-0.5 text-[11px] text-muted">
+                            {num(item.calories)} kcal · P {num(item.protein)}g · C {num(item.carbs)}g · F{' '}
+                            {num(item.fat)}g
+                          </p>
+                        </div>
 
-              </div>
-            )}
-
-          </div>
-        </div>
-      )}
-
-      {/* Manual Item Add/Edit Modal */}
-      {isManualModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-[#d8e5d0] w-full max-w-md rounded-3xl p-6 space-y-4 shadow-2xl relative">
-            
-            <div className="flex items-center justify-between border-b border-[#e2ebd9] pb-3">
-              <h3 className="font-serif font-bold text-lg text-[#0f4229]">
-                {editingItem ? "Edit Item" : "Add Item Manually"}
-              </h3>
-              <button onClick={() => setIsManualModalOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <X size={18} />
-              </button>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <div className="flex items-center rounded-lg border border-line bg-white">
+                            <button
+                              onClick={() => changeQty(item, -1)}
+                              disabled={qty <= 1}
+                              className="p-1.5 hover:bg-cream disabled:opacity-40"
+                              aria-label="Decrease quantity"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="px-2 text-xs font-semibold">{qty}</span>
+                            <button
+                              onClick={() => changeQty(item, 1)}
+                              className="p-1.5 hover:bg-cream"
+                              aria-label="Increase quantity"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                          <button
+                            onClick={() => removeItem(item)}
+                            className="p-1.5 text-rose-600 hover:text-rose-800"
+                            aria-label="Remove item"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
             </div>
 
-            <form onSubmit={handleSaveManualItem} className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-[#0f4229] mb-1">Item Name</label>
-                <input 
-                  type="text" 
-                  required
-                  placeholder="e.g. Whole Wheat Bread"
-                  value={manualForm.item_name}
-                  onChange={(e) => setManualForm({...manualForm, item_name: e.target.value})}
-                  className="w-full bg-[#f8f6ee] border border-[#d8e5d0] rounded-xl px-3 py-2 text-sm text-[#1c2e24] focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-[#0f4229] mb-1">Calories (kcal)</label>
-                  <input 
-                    type="number" 
-                    value={manualForm.calories}
-                    onChange={(e) => setManualForm({...manualForm, calories: Number(e.target.value)})}
-                    className="w-full bg-[#f8f6ee] border border-[#d8e5d0] rounded-xl px-3 py-2 text-sm text-[#1c2e24] focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-[#0f4229] mb-1">Price (₱)</label>
-                  <input 
-                    type="number" 
-                    value={manualForm.price}
-                    onChange={(e) => setManualForm({...manualForm, price: Number(e.target.value)})}
-                    className="w-full bg-[#f8f6ee] border border-[#d8e5d0] rounded-xl px-3 py-2 text-sm text-[#1c2e24] focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block text-[11px] font-semibold text-[#0f4229] mb-1">Protein (g)</label>
-                  <input 
-                    type="number" 
-                    value={manualForm.protein}
-                    onChange={(e) => setManualForm({...manualForm, protein: Number(e.target.value)})}
-                    className="w-full bg-[#f8f6ee] border border-[#d8e5d0] rounded-xl px-2.5 py-2 text-sm text-[#1c2e24] focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-[#0f4229] mb-1">Carbs (g)</label>
-                  <input 
-                    type="number" 
-                    value={manualForm.carbs}
-                    onChange={(e) => setManualForm({...manualForm, carbs: Number(e.target.value)})}
-                    className="w-full bg-[#f8f6ee] border border-[#d8e5d0] rounded-xl px-2.5 py-2 text-sm text-[#1c2e24] focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-[#0f4229] mb-1">Fat (g)</label>
-                  <input 
-                    type="number" 
-                    value={manualForm.fat}
-                    onChange={(e) => setManualForm({...manualForm, fat: Number(e.target.value)})}
-                    className="w-full bg-[#f8f6ee] border border-[#d8e5d0] rounded-xl px-2.5 py-2 text-sm text-[#1c2e24] focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <button 
-                type="submit"
-                className="w-full py-3 rounded-xl bg-[#0f4229] hover:bg-[#0b3320] text-white font-bold text-sm shadow-sm transition mt-2"
-              >
-                {editingItem ? "Save Changes" : "Add to Cart"}
-              </button>
-            </form>
-
-          </div>
+            <div className="border-t border-line px-6 py-3 flex items-center gap-2 text-[10px] text-muted">
+              <Clock className="w-3.5 h-3.5" />
+              Items stay in your cart until you remove them.
+            </div>
+          </section>
         </div>
-      )}
 
+        <footer className="mt-12 flex items-center justify-between text-[10px] text-muted">
+          <p>
+            <span className="font-semibold text-ink">NutriGo AI</span>
+            <span className="ml-3">Clarity for the everyday shop.</span>
+          </p>
+          <Link to="/" className="font-semibold text-ink inline-flex items-center gap-1">
+            About NutriGo <ArrowRight className="w-3 h-3" />
+          </Link>
+        </footer>
+      </main>
     </div>
-  );
+  )
 }

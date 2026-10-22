@@ -1,8 +1,42 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { SignedIn, useClerk, useUser } from '@clerk/clerk-react'
-import { Leaf, ArrowRight, UserRound } from 'lucide-react'
+import { Leaf, ArrowRight, Scale, Wifi, WifiOff } from 'lucide-react'
 
-export default function AppHeader({ showProfile = false }) {
+const API_ROOT = import.meta.env.VITE_API_URL || 'https://nutrigo-ai-backend.onrender.com'
+
+function ServiceStatus() {
+  const [state, setState] = useState('checking') // checking | ok | down
+
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${API_ROOT}/`)
+      .then((r) => !cancelled && setState(r.ok ? 'ok' : 'down'))
+      .catch(() => !cancelled && setState('down'))
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const dot =
+    state === 'ok' ? 'bg-brand' : state === 'down' ? 'bg-rose-500' : 'bg-amber-400'
+  const label =
+    state === 'ok'
+      ? 'NutriGo service connected'
+      : state === 'down'
+        ? 'NutriGo service unavailable'
+        : 'Checking NutriGo service'
+
+  return (
+    <span className="hidden md:flex items-center gap-2 text-[10px] font-semibold text-brand-dark">
+      <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
+      {label}
+      {state === 'down' ? <WifiOff className="w-3 h-3" /> : <Wifi className="w-3 h-3" />}
+    </span>
+  )
+}
+
+export default function AppHeader({ showProfile = false, showStatus = false }) {
   const { user, isLoaded } = useUser()
   const { signOut } = useClerk()
 
@@ -25,24 +59,26 @@ export default function AppHeader({ showProfile = false }) {
 
         <SignedIn>
           <nav className="flex items-center gap-3 sm:gap-5">
+            {showStatus && <ServiceStatus />}
+
             {showProfile && (
               <Link
                 to="/profile"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-line bg-white text-xs font-semibold hover:bg-cream transition"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-line bg-white text-[11px] font-semibold hover:bg-cream transition"
               >
-                <UserRound className="w-3.5 h-3.5" /> Profile
+                <Scale className="w-3.5 h-3.5" /> Profile
               </Link>
             )}
 
             {name && (
-              <span className="hidden sm:block text-xs uppercase tracking-wide text-muted">
+              <span className="hidden sm:block text-[11px] uppercase tracking-wide text-muted border-l border-line pl-4">
                 Hi, {name}
               </span>
             )}
 
             <button
               onClick={() => signOut({ redirectUrl: '/' })}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink hover:text-brand transition"
+              className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-ink hover:text-brand transition"
             >
               Sign out <ArrowRight className="w-3.5 h-3.5" />
             </button>
