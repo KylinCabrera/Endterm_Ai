@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { useClerk, useUser } from '@clerk/clerk-react'
+import { SignedIn, useClerk, useUser } from '@clerk/clerk-react'
 import { Leaf, ArrowRight, UserRound } from 'lucide-react'
 
 export default function AppHeader({ showProfile = false }) {
@@ -23,29 +23,31 @@ export default function AppHeader({ showProfile = false }) {
           </span>
         </Link>
 
-        <nav className="flex items-center gap-3 sm:gap-5">
-          {showProfile && (
-            <Link
-              to="/profile"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-line bg-white text-xs font-semibold hover:bg-cream transition"
+        <SignedIn>
+          <nav className="flex items-center gap-3 sm:gap-5">
+            {showProfile && (
+              <Link
+                to="/profile"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-line bg-white text-xs font-semibold hover:bg-cream transition"
+              >
+                <UserRound className="w-3.5 h-3.5" /> Profile
+              </Link>
+            )}
+
+            {name && (
+              <span className="hidden sm:block text-xs uppercase tracking-wide text-muted">
+                Hi, {name}
+              </span>
+            )}
+
+            <button
+              onClick={() => signOut({ redirectUrl: '/' })}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink hover:text-brand transition"
             >
-              <UserRound className="w-3.5 h-3.5" /> Profile
-            </Link>
-          )}
-
-          {name && (
-            <span className="hidden sm:block text-xs uppercase tracking-wide text-muted">
-              Hi, {name}
-            </span>
-          )}
-
-          <button
-            onClick={() => signOut({ redirectUrl: '/' })}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink hover:text-brand transition"
-          >
-            Sign out <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </nav>
+              Sign out <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </nav>
+        </SignedIn>
       </div>
     </header>
   )
