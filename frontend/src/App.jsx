@@ -13,6 +13,7 @@ import {
 
 import Landing from './pages/Landing';
 import Dashboard from './pages/Dashboard';
+import Profile from './pages/Profile';
 import AuthPage from './pages/AuthPage';
 
 export default function App() {
@@ -47,6 +48,21 @@ export default function App() {
             <>
               <SignedIn>
                 <Dashboard />
+              </SignedIn>
+
+              <SignedOut>
+                <RedirectToSignIn />
+              </SignedOut>
+            </>
+          }
+        />
+
+        <Route
+          path="/profile"
+          element={
+            <>
+              <SignedIn>
+                <Profile />
               </SignedIn>
 
               <SignedOut>
