@@ -4,7 +4,10 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
-from app.routes import auth_routes, ai_routes, cart_routes
+from app.routes import ai_routes, cart_routes, profile_routes
+from app.database import get_database
+from fastapi.responses import JSONResponse
+from pymongo.errors import PyMongoError
 
 load_dotenv()
 
@@ -55,9 +58,13 @@ async def register_user(user_data: UserRegister):
     }
 
 # Include API route modules
-app.include_router(auth_routes.router)
 app.include_router(ai_routes.router)
 app.include_router(cart_routes.router)
+app.include_router(profile_routes.router)
+
+@app.exception_handler(PyMongoError)
+async def database_error(request, error):
+    return JSONResponse(status_code=503, content={"detail": "Database unavailable. Changes were not confirmed saved; please retry."})
 
 
 @app.get("/")
@@ -66,5 +73,6 @@ def root():
 
 
 @app.get("/health")
-def health_check():
-    return {"status": "ok", "environment": os.getenv("ENV", "development")}
+async def health_check():
+    await get_database().command("ping")
+    return {"status": "ok", "database": "connected", "environment": os.getenv("ENV", "development")}
