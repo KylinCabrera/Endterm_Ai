@@ -5,7 +5,7 @@ import { Leaf, ArrowRight, Scale, Wifi, WifiOff } from 'lucide-react'
 
 const API_ROOT = (
   import.meta.env.VITE_API_URL ||
-  'https://nutrigo-ai-backend-dev.onrender.com'
+  'https://nutrigo-ai-backend.onrender.com'
 ).replace(/\/+$/, '')
 
 function ServiceStatus() {
