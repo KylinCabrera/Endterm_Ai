@@ -25,9 +25,13 @@ else:
 
 app = FastAPI(title="NutriGo AI API", version="1.0.0")
 
-# Parse allowed origins cleanly from environment
-raw_frontend_urls = os.getenv("FRONTEND_URL", "http://localhost:5173")
-allowed_origins = [url.strip() for url in raw_frontend_urls.split(",") if url.strip()]
+# Parse allowed origins cleanly from environment or fallback to wildcards for preview deployments
+raw_frontend_urls = os.getenv("FRONTEND_URL", "*")
+
+if raw_frontend_urls == "*":
+    allowed_origins = ["*"]
+else:
+    allowed_origins = [url.strip() for url in raw_frontend_urls.split(",") if url.strip()]
 
 app.add_middleware(
     CORSMiddleware,

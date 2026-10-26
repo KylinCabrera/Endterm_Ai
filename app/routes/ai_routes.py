@@ -66,32 +66,56 @@ async def scan_nutrition_label(
                         response_schema=NutritionLabelResponse,
                     ),
                 )
-                # The schema disallows an empty name, so unreadable output fails validation.
                 nutrition = NutritionLabelResponse.model_validate_json(response.text or '')
                 if not nutrition.item_name.strip():
                     raise HTTPException(422, 'The label is unreadable. Try a clearer photo.')
                 return nutrition
     except TimeoutError:
-        raise HTTPException(504, 'Label scanning timed out. Try a cropped, clearer photo.')
-    except errors.APIError as error:
-         safe_message = str(error.message).replace(
-        api_key,
-        "[REDACTED]"
-    )
-    logging.getLogger(__name__).error(
-        "Gemini request failed: code=%s message=%s",
-        error.code,
-        safe_message,
-    )
-         
-    if error.code == 429:
         raise HTTPException(
-            503,
-            "The AI usage limit was reached. Please try again later."
+            504,
+            "Label scanning timed out. Try a cropped, clearer photo.",
         )
 
-    raise HTTPException(
-        502,
-        "The AI provider rejected the request. "
-        "Check the backend model and API key settings."
-    )
+    except errors.APIError as error:
+        safe_message = str(error.message).replace(
+            api_key,
+            "[REDACTED]",
+        )
+
+        logging.getLogger(__name__).error(
+            "Gemini request failed: code=%s message=%s",
+            error.code,
+            safe_message,
+        )
+
+        if error.code == 429:
+            raise HTTPException(
+                503,
+                "The AI usage limit was reached. Please try again later.",
+            )
+
+        raise HTTPException(
+            502,
+            "The AI provider rejected the request. "
+            "Check the backend model and API key settings.",
+        )
+
+    except ValidationError:
+        raise HTTPException(
+            422,
+            "Could not extract complete nutrition values. "
+            "Try a clearer label photo.",
+        )
+
+    except HTTPException:
+        raise
+
+    except Exception:
+        logging.getLogger(__name__).error(
+            "Unexpected failure during label scanning."
+        )
+
+        raise HTTPException(
+            502,
+            "Could not scan this label. Please try again later.",
+        )
