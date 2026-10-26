@@ -1,82 +1,123 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE = (
+  import.meta.env.VITE_API_URL ||
+  'https://nutrigo-ai-backend.onrender.com'
+).replace(/\/$/, '');
 
+// Shared request handler
+async function sendRequest(path, options = {}, token = null) {
+  const isFormData = options.body instanceof FormData;
 
-async function request(path, options = {}) {
-  const token = localStorage.getItem('token');
-
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...options.headers,
-  };
-
-  const res = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(`${API_BASE}${path}`, {
     ...options,
-    headers,
+    headers: {
+      ...(!isFormData
+        ? { 'Content-Type': 'application/json' }
+        : {}),
+      ...options.headers,
+      ...(token
+        ? { Authorization: `Bearer ${token}` }
+        : {}),
+    },
   });
 
-  const data = await res.json().catch(() => ({}));
+  const data =
+    response.status === 204
+      ? null
+      : await response.json().catch(() => null);
 
-  if (!res.ok) {
-    const errorMessage =
-      typeof data.detail === 'string'
-        ? data.detail
-        : data.message || 'Something went wrong';
-    throw new Error(errorMessage);
+  if (!response.ok) {
+    let message = `Request failed (${response.status})`;
+
+    if (typeof data?.detail === 'string') {
+      message = data.detail;
+    } else if (Array.isArray(data?.detail)) {
+      message = data.detail
+        .map(error => error.msg)
+        .join('; ');
+    } else if (typeof data?.message === 'string') {
+      message = data.message;
+    }
+
+    throw new Error(message);
   }
 
   return data;
 }
 
-// System Health Checks
-export const getStatus = () => request('/');
-export const getHealth = () => request('/health');
+// Authenticated Clerk requests
+export async function apiRequest(
+  getToken,
+  path,
+  options = {}
+) {
+  const token = await getToken();
 
-// Auth Endpoints
-export const register = (body) =>
-  request('/api/auth/register', {
+  if (!token) {
+    throw new Error('Please sign in again.');
+  }
+
+  return sendRequest(path, options, token);
+}
+
+// Public service checks
+export const getStatus = () => sendRequest('/');
+
+export const getHealth = () => sendRequest('/health');
+
+// Legacy exports retained for the old Login/Signup page imports.
+// Clerk pages do not use these endpoints.
+export const register = body =>
+  sendRequest('/api/auth/register', {
     method: 'POST',
     body: JSON.stringify(body),
   });
 
-export const login = (body) =>
-  request('/api/auth/login', {
+export const login = body =>
+  sendRequest('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify(body),
   });
 
-// Cart Operations
-export const getCart = () => request('/api/cart');
+// Grocery operations — pass Clerk's getToken as the first argument
+export const getCart = getToken =>
+  apiRequest(getToken, '/api/cart');
 
-export const addToCart = (item) =>
-  request('/api/cart/items', {
+export const addToCart = (getToken, item) =>
+  apiRequest(getToken, '/api/cart', {
     method: 'POST',
     body: JSON.stringify(item),
   });
 
-export const updateCartItem = (itemId, updates) =>
-  request(`/api/cart/items/${itemId}`, {
-    method: 'PUT',
-    body: JSON.stringify(updates),
-  });
+export const updateCartItem = (getToken, itemId, updates) =>
+  apiRequest(
+    getToken,
+    `/api/cart/${encodeURIComponent(itemId)}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    }
+  );
 
-export const removeFromCart = (itemId) =>
-  request(`/api/cart/items/${itemId}`, {
-    method: 'DELETE',
-  });
+export const removeFromCart = (getToken, itemId) =>
+  apiRequest(
+    getToken,
+    `/api/cart/${encodeURIComponent(itemId)}`,
+    { method: 'DELETE' }
+  );
 
-// AI & OCR Services
-export const scanGroceryLabel = (formData) =>
-  fetch(`${API_BASE}/api/ai/scan`, {
+// Label scanning
+export const scanGroceryLabel = (getToken, formData) =>
+  apiRequest(getToken, '/api/ai/scan-label', {
     method: 'POST',
-    headers: {
-      ...(localStorage.getItem('token')
-        ? { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        : {}),
-    },
-    body: formData, // FormData handles its own Multipart boundaries
-  }).then(async (res) => {
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.detail || 'Failed to analyze label');
-    return data;
+    body: formData,
+  });
+
+// User profile
+export const getProfile = getToken =>
+  apiRequest(getToken, '/api/profile');
+
+export const saveProfile = (getToken, profile) =>
+  apiRequest(getToken, '/api/profile', {
+    method: 'PUT',
+    body: JSON.stringify(profile),
   });

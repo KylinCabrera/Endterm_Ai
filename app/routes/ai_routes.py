@@ -1,3 +1,4 @@
+import logging
 import asyncio
 import os
 
@@ -73,12 +74,24 @@ async def scan_nutrition_label(
     except TimeoutError:
         raise HTTPException(504, 'Label scanning timed out. Try a cropped, clearer photo.')
     except errors.APIError as error:
-        if error.code == 429:
-            raise HTTPException(503, 'The AI usage limit was reached. Please try again later.')
-        raise HTTPException(502, 'The AI provider rejected the request. Check the backend model and API key settings.')
-    except ValidationError:
-        raise HTTPException(422, 'Could not extract complete nutrition values. Try a clearer label photo.')
-    except HTTPException:
-        raise
-    except Exception:
-        raise HTTPException(502, 'Could not scan this label. Please try again later.')
+         safe_message = str(error.message).replace(
+        api_key,
+        "[REDACTED]"
+    )
+    logging.getLogger(__name__).error(
+        "Gemini request failed: code=%s message=%s",
+        error.code,
+        safe_message,
+    )
+         
+    if error.code == 429:
+        raise HTTPException(
+            503,
+            "The AI usage limit was reached. Please try again later."
+        )
+
+    raise HTTPException(
+        502,
+        "The AI provider rejected the request. "
+        "Check the backend model and API key settings."
+    )

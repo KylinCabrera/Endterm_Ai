@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useUser } from '@clerk/clerk-react'
+import { useUser, useAuth } from '@clerk/clerk-react'
 import { ArrowLeft, ArrowRight, HeartPulse, Scale, ShieldCheck, Check } from 'lucide-react'
 import AppHeader from '../components/AppHeader'
+import { apiRequest } from '../lib/api'
 
 const inputWrap =
   'flex items-center rounded-xl border border-line bg-white px-4 py-3 focus-within:ring-2 focus-within:ring-brand/30 focus-within:border-brand'
@@ -23,21 +24,28 @@ function bmiInfo(heightCm, weightKg) {
 
 export default function Profile() {
   const { user, isLoaded } = useUser()
-  const storageKey = user ? `nutrigo_profile_${user.id}` : null
+  const { getToken } = useAuth()
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [reload, setReload] = useState(0)
 
   const [form, setForm] = useState({ height: '', weight: '', calorieLimit: '' })
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!storageKey) return
-    try {
-      const raw = localStorage.getItem(storageKey)
-      if (raw) setForm(JSON.parse(raw))
-    } catch {
-      /* ignore bad data */
-    }
-  }, [storageKey])
+    if (!user?.id) return
+    let cancelled = false
+    apiRequest(getToken, '/api/profile').then(profile => {
+      if (!cancelled) setForm(profile ? {
+        height: profile.height, weight: profile.weight, calorieLimit: profile.calorieLimit,
+      } : { height: '', weight: '', calorieLimit: '' })
+    }).catch(error => {
+      if (!cancelled) { setError(error.message); setLoadFailed(true) }
+    }).finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [user?.id, getToken, reload])
 
   const bmi = useMemo(() => bmiInfo(form.height, form.weight), [form.height, form.weight])
   const hasProfile = Boolean(form.height && form.weight && form.calorieLimit)
@@ -48,7 +56,8 @@ export default function Profile() {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
+    if (saving) { e.preventDefault(); return }
     e.preventDefault()
     const h = Number(form.height)
     const w = Number(form.weight)
@@ -58,12 +67,18 @@ export default function Profile() {
     if (!(w >= 10 && w <= 400)) return setError('Weight should be between 10 and 400 kg.')
     if (!(c >= 200 && c <= 10000)) return setError('Calorie limit should be between 200 and 10,000 kcal.')
 
+    setSaving(true)
+    setError('')
+    setSaved(false)
     try {
-      localStorage.setItem(storageKey, JSON.stringify(form))
+      const profile = await apiRequest(getToken, '/api/profile', {
+        method: 'PUT', body: JSON.stringify({ height: h, weight: w, calorieLimit: c }),
+      })
+      setForm({ height: profile.height, weight: profile.weight, calorieLimit: profile.calorieLimit })
       setSaved(true)
-    } catch {
-      setError('Could not save your profile on this device.')
-    }
+    } catch (error) {
+      setError(error.message || 'Could not save your profile. Please retry.')
+    } finally { setSaving(false) }
   }
 
   return (
@@ -122,6 +137,7 @@ export default function Profile() {
               </div>
             </div>
 
+            <fieldset disabled={loading || saving || loadFailed} className="min-w-0">
             <div className="mt-6 grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold mb-1.5">Height</label>
@@ -176,6 +192,8 @@ export default function Profile() {
               </p>
             </div>
 
+            </fieldset>
+            {loadFailed && <button type="button" className="mt-4 text-sm underline" onClick={() => { setLoading(true); setLoadFailed(false); setError(''); setReload(value => value + 1) }}>Retry loading profile</button>}
             {error && (
               <p className="mt-4 text-sm text-rose-700 bg-rose-50 border border-rose-100 rounded-xl p-3">
                 {error}
@@ -189,10 +207,10 @@ export default function Profile() {
               </p>
               <button
                 type="submit"
-                disabled={!isLoaded}
+                disabled={!isLoaded || loading || saving || loadFailed}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-dark text-white text-sm font-semibold hover:bg-brand transition disabled:opacity-60"
               >
-                {saved ? (
+                {loading ? 'Loading…' : saving ? 'Saving…' : saved ? (
                   <>
                     Saved <Check className="w-4 h-4" />
                   </>
@@ -217,7 +235,7 @@ export default function Profile() {
             </div>
 
             <p className="mt-5 text-xs text-muted leading-relaxed">
-              Your BMI is shown as an informational calculation from your saved height and weight.
+              Your BMI is shown as an informational calculation from the height and weight entered above.
               It does not determine your shopping limit.
             </p>
 
@@ -228,7 +246,7 @@ export default function Profile() {
 
             <div className="mt-5 rounded-xl bg-sand p-4 text-xs text-[#6b5a1e] leading-relaxed">
               {hasProfile
-                ? 'Your profile is set. Your cart calorie alert is ready.'
+                ? 'Save your profile to apply these values to your cart calorie alert.'
                 : 'Your profile is not set up yet. Add your details to see BMI and activate a cart calorie alert.'}
             </div>
           </aside>

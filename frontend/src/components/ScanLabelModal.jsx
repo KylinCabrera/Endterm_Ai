@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { useAuth } from '@clerk/clerk-react';
 
-const API_BASE_URL = "https://nutrigo-ai-backend.onrender.com/api";
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'https://nutrigo-ai-backend.onrender.com').replace(/\/$/, '') + '/api';
 
 export default function ScanLabelModal({ currentUserEmail, onCartUpdated }) {
+  const { getToken } = useAuth();
   const [loading, setLoading] = useState(false);
 
   const handleImageUpload = async (event) => {
@@ -11,12 +13,15 @@ export default function ScanLabelModal({ currentUserEmail, onCartUpdated }) {
 
     setLoading(true);
     try {
+      const token = await getToken();
+      if (!token) throw new Error('Please sign in again.');
       // 1. Send image to Gemini OCR Endpoint
       const formData = new FormData();
       formData.append("file", file);
 
       const ocrResponse = await fetch(`${API_BASE_URL}/ai/scan-label`, {
         method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 
@@ -37,7 +42,7 @@ export default function ScanLabelModal({ currentUserEmail, onCartUpdated }) {
       // 3. Post automatically to /api/cart
       const cartResponse = await fetch(`${API_BASE_URL}/cart`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(cartPayload),
       });
 
