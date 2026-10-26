@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useUser } from '@clerk/clerk-react'
+import { useUser, useAuth } from '@clerk/clerk-react'
+import { apiRequest } from '../lib/api'
 import {
   ArrowRight,
   Clock,
@@ -19,15 +20,14 @@ import {
 } from 'lucide-react'
 import AppHeader from '../components/AppHeader'
 
-const API_BASE_URL = `${
-  import.meta.env.VITE_API_URL || 'https://nutrigo-ai-backend.onrender.com'
-}/api`
-
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0)
 
 export default function Dashboard() {
   const { user } = useUser()
-  const email = user?.primaryEmailAddress?.emailAddress || ''
+  const { getToken } = useAuth()
+  const [saving, setSaving] = useState(false)
+  const [calorieLimit, setCalorieLimit] = useState(0)
+  const [profileError, setProfileError] = useState('')
 
   const [items, setItems] = useState([])
   const [loadingCart, setLoadingCart] = useState(true)
@@ -40,36 +40,43 @@ export default function Dashboard() {
   const [dragOver, setDragOver] = useState(false)
   const inputRef = useRef(null)
 
-  // Calorie limit comes from the Profile page (localStorage for now)
-  const calorieLimit = useMemo(() => {
-    if (!user) return 0
-    try {
-      const raw = localStorage.getItem(`nutrigo_profile_${user.id}`)
-      return raw ? num(JSON.parse(raw).calorieLimit) : 0
-    } catch {
-      return 0
-    }
-  }, [user])
+const fetchCart = useCallback(async () => {
+  if (!user?.id) return
 
-  const fetchCart = useCallback(async () => {
-    if (!email) return
-    setLoadingCart(true)
-    setCartError('')
-    try {
-      const res = await fetch(`${API_BASE_URL}/cart?user_email=${encodeURIComponent(email)}`)
-      if (!res.ok) throw new Error('Could not load your cart.')
-      const data = await res.json()
-      setItems(Array.isArray(data) ? data : [])
-    } catch (err) {
-      setCartError(err.message || 'Could not load your cart.')
-    } finally {
-      setLoadingCart(false)
-    }
-  }, [email])
+  setLoadingCart(true)
+  setCartError('')
+
+  try {
+    const data = await apiRequest(getToken, '/api/cart')
+    setItems(data)
+  } catch (error) {
+    setCartError(error.message)
+  } finally {
+    setLoadingCart(false)
+  }
+}, [user?.id, getToken])
 
   useEffect(() => {
-    fetchCart()
-  }, [fetchCart])
+    if (!user?.id) return
+    let cancelled = false
+    apiRequest(getToken, '/api/cart').then(data => {
+      if (!cancelled) { setItems(data); setCartError('') }
+    }).catch(error => {
+      if (!cancelled) setCartError(error.message || 'Could not load your cart.')
+    }).finally(() => { if (!cancelled) setLoadingCart(false) })
+    return () => { cancelled = true }
+  }, [user?.id, getToken])
+
+  useEffect(() => {
+    if (!user?.id) return
+    let cancelled = false
+    apiRequest(getToken, '/api/profile').then(profile => {
+      if (!cancelled) setCalorieLimit(num(profile?.calorieLimit))
+    }).catch(error => {
+      if (!cancelled) setProfileError('Could not load your saved calorie limit: ' + error.message)
+    })
+    return () => { cancelled = true }
+  }, [user?.id, getToken])
 
   useEffect(() => {
     return () => {
@@ -98,78 +105,114 @@ export default function Dashboard() {
     setPreviewUrl(URL.createObjectURL(f))
   }
 
-  const handleScan = async () => {
-    if (!file || !email) return
-    setScanning(true)
-    setScanError('')
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-      const ocr = await fetch(`${API_BASE_URL}/ai/scan-label`, {
+const handleScan = async () => {
+  if (!file || !user?.id || scanning || saving) return
+
+  setScanning(true)
+  setScanError('')
+
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const scanned = await apiRequest(
+      getToken,
+      '/api/ai/scan-label',
+      {
         method: 'POST',
         body: formData,
-      })
-      if (!ocr.ok) throw new Error('We could not read that label. Try a clearer photo.')
-      const scanned = await ocr.json()
-
-      const payload = {
-        user_email: email,
-        item_name: scanned.item_name || 'Scanned item',
-        calories: scanned.calories ?? 0,
-        protein: scanned.protein ?? 0,
-        carbs: scanned.carbs ?? 0,
-        fat: scanned.fat ?? 0,
-        quantity: 1,
       }
-      const add = await fetch(`${API_BASE_URL}/cart`, {
+    )
+
+    const savedItem = await apiRequest(
+      getToken,
+      '/api/cart',
+      {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      if (!add.ok) throw new Error('Could not add the item to your cart.')
+        body: JSON.stringify({
+          item_name: scanned.item_name,
+          calories: scanned.calories,
+          protein: scanned.protein,
+          carbs: scanned.carbs,
+          fat: scanned.fat,
+          quantity: 1,
+        }),
+      }
+    )
 
-      setFile(null)
-      setPreviewUrl(null)
-      await fetchCart()
-    } catch (err) {
-      setScanError(err.message || 'Something went wrong.')
-    } finally {
-      setScanning(false)
-    }
+    setItems(previous => [...previous, savedItem])
+
+    setFile(null)
+    setPreviewUrl(null)
+  } catch (error) {
+    setScanError(error.message)
+  } finally {
+    setScanning(false)
   }
+}
 
-  const changeQty = async (item, delta) => {
-    const qty = Math.max(1, (num(item.quantity) || 1) + delta)
-    const previous = items
-    setItems((prev) => prev.map((i) => (i._id === item._id ? { ...i, quantity: qty } : i)))
-    try {
-      const res = await fetch(`${API_BASE_URL}/cart/${item._id}`, {
+const changeQty = async (item, delta) => {
+  if (saving || scanning) return
+
+  setSaving(true)
+  setCartError('')
+
+  try {
+    const quantity = Math.max(
+      1,
+      (Number(item.quantity) || 1) + delta
+    )
+
+    const savedItem = await apiRequest(
+      getToken,
+      `/api/cart/${item.id}`,
+      {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...item, quantity: qty }),
-      })
-      if (!res.ok) throw new Error()
-    } catch {
-      setItems(previous)
-    }
-  }
+        body: JSON.stringify({ quantity }),
+      }
+    )
 
-  const removeItem = async (item) => {
-    const previous = items
-    setItems((prev) => prev.filter((i) => i._id !== item._id))
-    try {
-      const res = await fetch(`${API_BASE_URL}/cart/${item._id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error()
-    } catch {
-      setItems(previous)
-    }
+    setItems(previous =>
+      previous.map(current =>
+        current.id === item.id ? savedItem : current
+      )
+    )
+  } catch (error) {
+    setCartError(error.message)
+  } finally {
+    setSaving(false)
   }
+}
+
+const removeItem = async item => {
+  if (saving || scanning) return
+
+  setSaving(true)
+  setCartError('')
+
+  try {
+    await apiRequest(
+      getToken,
+      `/api/cart/${item.id}`,
+      { method: 'DELETE' }
+    )
+
+    setItems(previous =>
+      previous.filter(current => current.id !== item.id)
+    )
+  } catch (error) {
+    setCartError(error.message)
+  } finally {
+    setSaving(false)
+  }
+}
 
   return (
     <div className="min-h-screen bg-cream text-ink">
       <AppHeader showProfile showStatus />
 
       <main className="max-w-6xl mx-auto px-6 py-10">
+        {profileError && <p role="alert" className="mb-5 text-sm text-rose-700">{profileError}</p>}
         {/* Hero */}
         <p className="flex items-center gap-2 text-[10px] tracking-[0.2em] font-semibold text-muted">
           <span className="w-2 h-2 rounded-full bg-[#f08a5d]" />
@@ -289,7 +332,7 @@ export default function Dashboard() {
 
             <button
               onClick={handleScan}
-              disabled={!file || scanning}
+              disabled={!file || scanning || saving}
               className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-brand-dark py-3.5 text-sm font-semibold text-white transition hover:bg-brand disabled:bg-[#cfdccf] disabled:text-white/80 disabled:cursor-not-allowed"
             >
               {scanning ? (
@@ -417,7 +460,7 @@ export default function Dashboard() {
                     const qty = num(item.quantity) || 1
                     return (
                       <li
-                        key={item._id}
+                        key={item.id}
                         className="rounded-2xl border border-line bg-white/60 p-4 flex items-center justify-between gap-3"
                       >
                         <div className="min-w-0">
@@ -432,7 +475,7 @@ export default function Dashboard() {
                           <div className="flex items-center rounded-lg border border-line bg-white">
                             <button
                               onClick={() => changeQty(item, -1)}
-                              disabled={qty <= 1}
+                              disabled={qty <= 1 || saving || scanning}
                               className="p-1.5 hover:bg-cream disabled:opacity-40"
                               aria-label="Decrease quantity"
                             >
@@ -440,6 +483,7 @@ export default function Dashboard() {
                             </button>
                             <span className="px-2 text-xs font-semibold">{qty}</span>
                             <button
+                              disabled={saving || scanning}
                               onClick={() => changeQty(item, 1)}
                               className="p-1.5 hover:bg-cream"
                               aria-label="Increase quantity"
@@ -448,6 +492,7 @@ export default function Dashboard() {
                             </button>
                           </div>
                           <button
+                            disabled={saving || scanning}
                             onClick={() => removeItem(item)}
                             className="p-1.5 text-rose-600 hover:text-rose-800"
                             aria-label="Remove item"

@@ -3,7 +3,10 @@ import { Link } from 'react-router-dom'
 import { SignedIn, useClerk, useUser } from '@clerk/clerk-react'
 import { Leaf, ArrowRight, Scale, Wifi, WifiOff } from 'lucide-react'
 
-const API_ROOT = import.meta.env.VITE_API_URL || 'https://nutrigo-ai-backend.onrender.com'
+const API_ROOT = (
+  import.meta.env.VITE_API_URL ||
+  'https://nutrigo-ai-backend-dev.onrender.com'
+).replace(/\/+$/, '')
 
 function ServiceStatus() {
   const [state, setState] = useState('checking') // checking | ok | down
