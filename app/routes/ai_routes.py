@@ -52,7 +52,7 @@ async def scan_nutrition_label(
                 ),
             ).aio as client:
                 response = await client.models.generate_content(
-                    model=os.getenv('GEMINI_MODEL', 'gemini-3.8-flash'),
+                    model=os.getenv('GEMINI_MODEL', 'gemini-2.5-flash'),
                     contents=[
                         types.Part.from_bytes(data=contents, mime_type=file.content_type),
                         'Read this nutrition label. Extract product name, calories in kcal, '
