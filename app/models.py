@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import List, Optional
 
+
 class UserProfile(BaseModel):
     age: Optional[int] = None
     height: Optional[float] = None
@@ -23,28 +24,50 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 class CartItemCreate(BaseModel):
-    user_email: EmailStr
-    item_name: str
-    calories: float = Field(default=0.0, ge=0)
-    protein: float = Field(default=0.0, ge=0)
-    carbs: float = Field(default=0.0, ge=0)
-    fat: float = Field(default=0.0, ge=0)
+    item_name: str = Field(min_length=1, max_length=200)
+
+    calories: float = Field(
+        default=0, ge=0, allow_inf_nan=False
+    )
+    protein: float = Field(
+        default=0, ge=0, allow_inf_nan=False
+    )
+    carbs: float = Field(
+        default=0, ge=0, allow_inf_nan=False
+    )
+    fat: float = Field(
+        default=0, ge=0, allow_inf_nan=False
+    )
+
     quantity: int = Field(default=1, ge=1)
+    price: float = Field(
+        default=0, ge=0, allow_inf_nan=False
+    )
+
 
 class CartItemUpdate(BaseModel):
-    item_name: Optional[str] = None
-    calories: Optional[float] = Field(default=None, ge=0)
-    protein: Optional[float] = Field(default=None, ge=0)
-    carbs: Optional[float] = Field(default=None, ge=0)
-    fat: Optional[float] = Field(default=None, ge=0)
-    quantity: Optional[int] = Field(default=None, ge=1)
+    item_name: Optional[str] = Field(
+        default=None, min_length=1, max_length=200
+    )
 
-class CartItemResponse(BaseModel):
+    calories: Optional[float] = Field(
+        default=None, ge=0, allow_inf_nan=False
+    )
+    protein: Optional[float] = Field(
+        default=None, ge=0, allow_inf_nan=False
+    )
+    carbs: Optional[float] = Field(
+        default=None, ge=0, allow_inf_nan=False
+    )
+    fat: Optional[float] = Field(
+        default=None, ge=0, allow_inf_nan=False
+    )
+
+    quantity: Optional[int] = Field(default=None, ge=1)
+    price: Optional[float] = Field(
+        default=None, ge=0, allow_inf_nan=False
+    )
+
+
+class CartItemResponse(CartItemCreate):
     id: str
-    user_email: str
-    item_name: str
-    calories: float
-    protein: float
-    carbs: float
-    fat: float
-    quantity: int

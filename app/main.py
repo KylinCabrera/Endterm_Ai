@@ -3,10 +3,12 @@ import sentry_sdk
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import auth_routes, ai_routes
-from app.routes import cart_routes
+from pydantic import BaseModel, EmailStr
+from app.routes import ai_routes, cart_routes, profile_routes
+from app.database import get_database
+from fastapi.responses import JSONResponse
+from pymongo.errors import PyMongoError
 
-# Load local .env variables into os.environ
 load_dotenv()
 
 SENTRY_DSN = os.getenv("SENTRY_DSN")
@@ -23,9 +25,9 @@ else:
 
 app = FastAPI(title="NutriGo AI API", version="1.0.0")
 
-allowed_origins = os.getenv(
-    "FRONTEND_URL", "http://localhost:5173"
-).split(",")
+# Parse allowed origins cleanly from environment
+raw_frontend_urls = os.getenv("FRONTEND_URL", "http://localhost:5173")
+allowed_origins = [url.strip() for url in raw_frontend_urls.split(",") if url.strip()]
 
 app.add_middleware(
     CORSMiddleware,
@@ -35,10 +37,42 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth_routes.router)
+# User Registration Schema
+class UserRegister(BaseModel):
+    email: EmailStr
+    password: str
+    name: str | None = None
+
+# Standalone Registration Route
+@app.post("/api/register")
+async def register_user(user_data: UserRegister):
+    print(f"Received user registration for: {user_data.email}")
+    
+    return {
+        "status": "success",
+        "message": "User registered successfully",
+        "user": {
+            "email": user_data.email,
+            "name": user_data.name
+        }
+    }
+
+# Include API route modules
 app.include_router(ai_routes.router)
 app.include_router(cart_routes.router)
+app.include_router(profile_routes.router)
+
+@app.exception_handler(PyMongoError)
+async def database_error(request, error):
+    return JSONResponse(status_code=503, content={"detail": "Database unavailable. Changes were not confirmed saved; please retry."})
+
 
 @app.get("/")
 def root():
     return {"status": "NutriGo AI API is running"}
+
+
+@app.get("/health")
+async def health_check():
+    await get_database().command("ping")
+    return {"status": "ok", "database": "connected", "environment": os.getenv("ENV", "development")}

@@ -1,0 +1,338 @@
+.nutrigo-auth {
+  min-height: 100vh;
+  background: #f8f6ec;
+  color: #073c2f;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.nutrigo-auth * {
+  box-sizing: border-box;
+}
+
+.nutrigo-auth a {
+  text-decoration: none;
+}
+
+.nutrigo-auth a:focus-visible {
+  outline: 2px solid #007b58;
+  outline-offset: 5px;
+}
+
+/* Top navigation */
+
+.auth-header {
+  width: min(1180px, calc(100% - 48px));
+  min-height: 84px;
+  margin: 0 auto;
+  border-bottom: 1px solid #dedfd1;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.auth-header > p {
+  color: #758275;
+  font-size: 11px;
+}
+
+.auth-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  color: #003e2d;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.7px;
+}
+
+.auth-brand-icon {
+  display: grid;
+  place-items: center;
+
+  width: 34px;
+  height: 36px;
+  border-radius: 11px;
+  background: #007b58;
+  color: white;
+}
+
+.auth-brand-icon svg {
+  width: 23px;
+  height: 23px;
+}
+
+.auth-brand small {
+  padding: 3px 5px;
+  border-radius: 3px;
+  background: #f0dfac;
+  color: #756128;
+  font-size: 8px;
+  letter-spacing: 0.5px;
+}
+
+/* Two-column layout */
+
+.auth-layout {
+  width: min(980px, calc(100% - 48px));
+  min-height: calc(100vh - 84px);
+  margin: 0 auto;
+  padding: 48px 0 64px;
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 390px;
+  align-items: center;
+  gap: 80px;
+}
+
+.auth-eyebrow {
+  margin: 0 0 27px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.8px;
+}
+
+.auth-story h1 {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(44px, 4.6vw, 60px);
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: -3px;
+}
+
+.auth-story h1 em {
+  color: #007b58;
+}
+
+.auth-description {
+  max-width: 285px;
+  margin: 22px 0;
+  color: #526f60;
+  font-size: 13px;
+  line-height: 1.9;
+}
+
+/* Decorative leaf */
+
+.auth-illustration {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin: 20px 0 0 22px;
+}
+
+.auth-leaf-circle {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+
+  width: 125px;
+  height: 125px;
+  border: 1px solid #a8bc89;
+  border-radius: 50%;
+  background: #e9edd6;
+  color: #007b58;
+}
+
+.auth-leaf-circle svg {
+  width: 60px;
+  height: 60px;
+  transform: rotate(-25deg);
+}
+
+.auth-illustration > p {
+  color: #687d55;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 15px;
+  line-height: 1.15;
+  transform: rotate(-7deg);
+}
+
+/* Form panel */
+
+.auth-panel {
+  min-width: 0;
+  padding: 36px 24px 15px;
+
+  border: 1px solid #e9e0d1;
+  border-radius: 24px;
+  background: #fffdf7;
+  box-shadow: 0 18px 45px #253b2510;
+}
+
+.auth-panel-brand {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 25px;
+}
+
+.auth-panel-brand .auth-brand {
+  gap: 5px;
+  font-size: 14px;
+}
+
+.auth-panel-brand .auth-brand-icon {
+  width: 22px;
+  height: 23px;
+  border-radius: 7px;
+}
+
+.auth-panel-brand .auth-brand-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.auth-panel-brand .auth-brand small {
+  font-size: 6px;
+}
+
+/* Clerk component styling */
+
+.nutrigo-auth .nutri-clerk-root,
+.nutrigo-auth .nutri-clerk-box {
+  width: 100%;
+  max-width: 100%;
+}
+
+.nutrigo-auth .nutri-clerk-box {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.nutrigo-auth .nutri-clerk-card {
+  padding: 0 12px 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.nutrigo-auth .nutri-clerk-title {
+  color: #073c2f;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 25px;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.nutrigo-auth .nutri-clerk-subtitle {
+  color: #657f6c;
+  font-size: 11px;
+  line-height: 1.7;
+  text-align: center;
+}
+
+.nutrigo-auth .nutri-clerk-input {
+  min-height: 39px;
+  border: 1px solid #e8e9df;
+  border-radius: 9px;
+  background: #fffefa;
+  box-shadow: none;
+}
+
+.nutrigo-auth .nutri-clerk-input:focus {
+  border-color: #007b58;
+  box-shadow: 0 0 0 2px #007b5815;
+}
+
+.nutrigo-auth .nutri-clerk-button {
+  min-height: 40px;
+  border-radius: 9px;
+  background: #007b58;
+  color: white;
+  font-size: 12px;
+  text-transform: none;
+}
+
+.nutrigo-auth .nutri-clerk-button:hover {
+  background: #006b4b;
+}
+
+.nutrigo-auth .nutri-clerk-social {
+  min-height: 40px;
+  border: 1px solid #eeeadd;
+  border-radius: 16px;
+  background: #fffdf7;
+  color: #123e30;
+}
+
+.nutrigo-auth .nutri-clerk-footer {
+  padding: 18px 10px 10px;
+  background: transparent;
+  background-image: none;
+}
+
+.nutrigo-auth .nutri-clerk-link {
+  color: #007b58;
+  font-weight: 600;
+}
+
+/* Tablet */
+
+@media (max-width: 950px) {
+  .auth-layout {
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 35px;
+  }
+
+  .auth-story h1 {
+    font-size: 46px;
+    letter-spacing: -2px;
+  }
+}
+
+/* Mobile */
+
+@media (max-width: 720px) {
+  .auth-header {
+    width: calc(100% - 36px);
+    min-height: 72px;
+  }
+
+  .auth-header > p {
+    max-width: 120px;
+    font-size: 9px;
+    line-height: 1.6;
+    text-align: right;
+  }
+
+  .auth-layout {
+    width: min(430px, calc(100% - 32px));
+    min-height: calc(100vh - 72px);
+    padding: 32px 0 40px;
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  .auth-story {
+    text-align: center;
+  }
+
+  .auth-eyebrow {
+    margin-bottom: 14px;
+    font-size: 8px;
+  }
+
+  .auth-story h1 {
+    font-size: 43px;
+  }
+
+  .auth-description {
+    margin: 14px auto 0;
+    font-size: 12px;
+  }
+
+  .auth-illustration {
+    display: none;
+  }
+
+  .auth-panel {
+    padding: 28px 18px 12px;
+    border-radius: 20px;
+  }
+}
