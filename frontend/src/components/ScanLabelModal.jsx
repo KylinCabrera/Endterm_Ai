@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
+import { IMAGE_ACCEPT, validateImage } from '../lib/imageUpload';
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || 'https://nutrigo-ai-backend.onrender.com').replace(/\/$/, '') + '/api';
 
@@ -10,6 +11,11 @@ export default function ScanLabelModal({ currentUserEmail, onCartUpdated }) {
   const handleImageUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
+    const validationError = validateImage(file);
+    if (validationError) {
+      alert(validationError);
+      return;
+    }
 
     setLoading(true);
     try {
@@ -25,8 +31,8 @@ export default function ScanLabelModal({ currentUserEmail, onCartUpdated }) {
         body: formData,
       });
 
-      if (!ocrResponse.ok) throw new Error("Failed to scan label");
       const scannedData = await ocrResponse.json();
+      if (!ocrResponse.ok) throw new Error(scannedData.detail || 'Failed to scan label');
 
       // 2. Map OCR JSON to Cart POST payload
       const cartPayload = {
@@ -54,7 +60,7 @@ export default function ScanLabelModal({ currentUserEmail, onCartUpdated }) {
       }
     } catch (err) {
       console.error(err);
-      alert("Error scanning image or adding to cart.");
+      alert(err.message || 'Error scanning image or adding to cart.');
     } finally {
       setLoading(false);
     }
@@ -66,7 +72,7 @@ export default function ScanLabelModal({ currentUserEmail, onCartUpdated }) {
         {loading ? "Scanning Label..." : "📷 Scan Nutrition Label"}
         <input 
           type="file" 
-          accept="image/*" 
+          accept={IMAGE_ACCEPT}
           onChange={handleImageUpload} 
           disabled={loading}
           hidden 

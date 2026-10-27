@@ -13,3 +13,4 @@ passlib[bcrypt]
 google-genai
 email-validator
 python-multipart
+Pillow>=11.0
