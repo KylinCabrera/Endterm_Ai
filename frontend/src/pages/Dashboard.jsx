@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useUser, useAuth } from '@clerk/clerk-react'
 import { apiRequest } from '../lib/api'
+import { IMAGE_ACCEPT, validateImage } from '../lib/imageUpload'
 import {
   ArrowRight,
   Clock,
@@ -96,8 +97,9 @@ const fetchCart = useCallback(async () => {
 
   const pickFile = (f) => {
     if (!f) return
-    if (!f.type.startsWith('image/')) {
-      setScanError('Please choose an image file.')
+    const error = validateImage(f)
+    if (error) {
+      setScanError(error)
       return
     }
     setScanError('')
@@ -289,7 +291,7 @@ const removeItem = async item => {
               <input
                 ref={inputRef}
                 type="file"
-                accept="image/*"
+                accept={IMAGE_ACCEPT}
                 hidden
                 onChange={(e) => pickFile(e.target.files?.[0])}
               />
