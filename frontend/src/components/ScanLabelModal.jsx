@@ -1,83 +1,63 @@
-import { useState } from 'react';
-import { useAuth } from '@clerk/clerk-react';
-import { IMAGE_ACCEPT, validateImage } from '../lib/imageUpload';
+import { useState } from 'react'
+import { useAuth } from '@clerk/clerk-react'
+import { IMAGE_ACCEPT, validateImage } from '../lib/imageUpload'
+import { apiRequest } from '../lib/api'
+import ScanResults from './ScanResults'
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'https://nutrigo-ai-backend.onrender.com').replace(/\/$/, '') + '/api';
+export default function ScanLabelModal({ onCartUpdated }) {
+  const { getToken } = useAuth()
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [result, setResult] = useState(null)
+  const [error, setError] = useState('')
 
-export default function ScanLabelModal({ currentUserEmail, onCartUpdated }) {
-  const { getToken } = useAuth();
-  const [loading, setLoading] = useState(false);
-
-  const handleImageUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-    const validationError = validateImage(file);
-    if (validationError) {
-      alert(validationError);
-      return;
-    }
-
-    setLoading(true);
+  const handleImageUpload = async event => {
+    const file = event.target.files[0]
+    event.target.value = ''
+    if (!file || loading || saving) return
+    const validationError = validateImage(file)
+    if (validationError) { setError(validationError); return }
+    setLoading(true)
+    setResult(null)
+    setError('')
     try {
-      const token = await getToken();
-      if (!token) throw new Error('Please sign in again.');
-      // 1. Send image to Gemini OCR Endpoint
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const ocrResponse = await fetch(`${API_BASE_URL}/ai/scan-label`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-
-      const scannedData = await ocrResponse.json();
-      if (!ocrResponse.ok) throw new Error(scannedData.detail || 'Failed to scan label');
-
-      // 2. Map OCR JSON to Cart POST payload
-      const cartPayload = {
-        user_email: currentUserEmail || "user@example.com",
-        item_name: scannedData.item_name || "Scanned Item",
-        calories: scannedData.calories || 0,
-        protein: scannedData.protein || 0,
-        carbs: scannedData.carbs || 0,
-        fat: scannedData.fat || 0,
-        quantity: 1
-      };
-
-      // 3. Post automatically to /api/cart
-      const cartResponse = await fetch(`${API_BASE_URL}/cart`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(cartPayload),
-      });
-
-      if (cartResponse.ok) {
-        alert("Item scanned and added to cart!");
-        if (onCartUpdated) onCartUpdated(); // Refresh cart list UI
-      } else {
-        throw new Error("Failed to add item to cart");
-      }
-    } catch (err) {
-      console.error(err);
-      alert(err.message || 'Error scanning image or adding to cart.');
+      const body = new FormData()
+      body.append('file', file)
+      setResult(await apiRequest(getToken, '/api/ai/scan-label', { method: 'POST', body }))
+    } catch (failure) {
+      setError(failure.message)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
+
+  const saveResult = async nutrition => {
+    if (saving) return
+    setSaving(true)
+    setError('')
+    try {
+      await apiRequest(getToken, '/api/cart', {
+        method: 'POST',
+        body: JSON.stringify({ ...nutrition, sodium: nutrition.sodium ?? null, quantity: 1 }),
+      })
+      setResult(null)
+      onCartUpdated?.()
+    } catch (failure) {
+      setError(failure.message)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
-    <div className="scan-upload-container my-4">
-      <label className="upload-btn cursor-pointer inline-block bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition">
-        {loading ? "Scanning Label..." : "📷 Scan Nutrition Label"}
-        <input 
-          type="file" 
-          accept={IMAGE_ACCEPT}
-          onChange={handleImageUpload} 
-          disabled={loading}
-          hidden 
-        />
+    <div className="my-4">
+      <label className="inline-block rounded-lg bg-brand-dark px-4 py-2 text-white">
+        {loading ? 'Scanning label…' : 'Scan nutrition label'}
+        <input type="file" accept={IMAGE_ACCEPT} onChange={handleImageUpload} disabled={loading || saving} hidden />
       </label>
+      {result ? (
+        <ScanResults result={result} onSave={saveResult} onDiscard={() => { setResult(null); setError('') }} saving={saving} error={error} />
+      ) : error && <p role="alert" className="mt-3 text-xs text-rose-700">{error}</p>}
     </div>
-  );
+  )
 }

@@ -20,6 +20,9 @@ import {
   CornerLeftDown,
 } from 'lucide-react'
 import AppHeader from '../components/AppHeader'
+import ScanResults from '../components/ScanResults'
+import SodiumIndicator from '../components/SodiumIndicator'
+import EditableItemName from '../components/EditableItemName'
 
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0)
 
@@ -38,6 +41,8 @@ export default function Dashboard() {
   const [previewUrl, setPreviewUrl] = useState(null)
   const [scanning, setScanning] = useState(false)
   const [scanError, setScanError] = useState('')
+  const [scanResult, setScanResult] = useState(null)
+  const [saveError, setSaveError] = useState('')
   const [dragOver, setDragOver] = useState(false)
   const inputRef = useRef(null)
 
@@ -96,13 +101,15 @@ const fetchCart = useCallback(async () => {
   const overLimit = calorieLimit > 0 && totalCalories > calorieLimit
 
   const pickFile = (f) => {
-    if (!f) return
+    if (!f || scanning || saving) return
     const error = validateImage(f)
     if (error) {
       setScanError(error)
       return
     }
     setScanError('')
+    setScanResult(null)
+    setSaveError('')
     setFile(f)
     setPreviewUrl(URL.createObjectURL(f))
   }
@@ -112,6 +119,8 @@ const handleScan = async () => {
 
   setScanning(true)
   setScanError('')
+  setScanResult(null)
+  setSaveError('')
 
   try {
     const formData = new FormData()
@@ -126,6 +135,19 @@ const handleScan = async () => {
       }
     )
 
+    setScanResult(scanned)
+  } catch (error) {
+    setScanError(error.message)
+  } finally {
+    setScanning(false)
+  }
+}
+
+const saveScan = async scanned => {
+  if (saving || scanning) return
+  setSaving(true)
+  setSaveError('')
+  try {
     const savedItem = await apiRequest(
       getToken,
       '/api/cart',
@@ -137,6 +159,7 @@ const handleScan = async () => {
           protein: scanned.protein,
           carbs: scanned.carbs,
           fat: scanned.fat,
+          sodium: scanned.sodium ?? null,
           quantity: 1,
         }),
       }
@@ -146,10 +169,25 @@ const handleScan = async () => {
 
     setFile(null)
     setPreviewUrl(null)
+    setScanResult(null)
+    if (inputRef.current) inputRef.current.value = ''
   } catch (error) {
-    setScanError(error.message)
+    setSaveError(error.message)
   } finally {
-    setScanning(false)
+    setSaving(false)
+  }
+}
+
+const renameItem = async (item, item_name) => {
+  setSaving(true)
+  try {
+    const savedItem = await apiRequest(getToken, `/api/cart/${item.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ item_name }),
+    })
+    setItems(previous => previous.map(current => current.id === item.id ? savedItem : current))
+  } finally {
+    setSaving(false)
   }
 }
 
@@ -292,6 +330,7 @@ const removeItem = async item => {
                 ref={inputRef}
                 type="file"
                 accept={IMAGE_ACCEPT}
+                disabled={scanning || saving}
                 hidden
                 onChange={(e) => pickFile(e.target.files?.[0])}
               />
@@ -334,7 +373,7 @@ const removeItem = async item => {
 
             <button
               onClick={handleScan}
-              disabled={!file || scanning || saving}
+              disabled={!file || scanning || saving || !!scanResult}
               className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-brand-dark py-3.5 text-sm font-semibold text-white transition hover:bg-brand disabled:bg-[#cfdccf] disabled:text-white/80 disabled:cursor-not-allowed"
             >
               {scanning ? (
@@ -347,6 +386,16 @@ const removeItem = async item => {
                 </>
               )}
             </button>
+
+            {scanResult && (
+              <ScanResults
+                result={scanResult}
+                onSave={saveScan}
+                saving={saving}
+                error={saveError}
+                onDiscard={() => { setScanResult(null); setSaveError('') }}
+              />
+            )}
 
             <p className="mt-4 flex items-center gap-2 text-[10px] text-muted">
               <Lock className="w-3.5 h-3.5" />
@@ -463,17 +512,19 @@ const removeItem = async item => {
                     return (
                       <li
                         key={item.id}
-                        className="rounded-2xl border border-line bg-white/60 p-4 flex items-center justify-between gap-3"
+                        className="rounded-2xl border border-line bg-white/60 p-4 space-y-3"
                       >
                         <div className="min-w-0">
-                          <h4 className="text-sm font-semibold truncate">{item.item_name}</h4>
+                          <EditableItemName item={item} onSave={renameItem} disabled={saving || scanning} />
                           <p className="mt-0.5 text-[11px] text-muted">
                             {num(item.calories)} kcal · P {num(item.protein)}g · C {num(item.carbs)}g · F{' '}
                             {num(item.fat)}g
                           </p>
+                          <SodiumIndicator sodium={item.sodium} />
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-xs text-muted">Servings</span>
                           <div className="flex items-center rounded-lg border border-line bg-white">
                             <button
                               onClick={() => changeQty(item, -1)}
