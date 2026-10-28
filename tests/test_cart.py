@@ -110,7 +110,8 @@ def test_create_cart_item(authenticated_client):
                 "carbs": 32,
                 "fat": 3.5,
                 "quantity": 1,
-                "price": 99,
+                "sodium": 140,
+                "price": 99,  # Legacy clients must not persist prices.
             },
         )
 
@@ -123,4 +124,49 @@ def test_create_cart_item(authenticated_client):
     )
 
     assert saved_document["user_id"] == TEST_USER_ID
-    assert saved_document["price"] == 99
+    assert saved_document["sodium"] == 140
+    assert response.json()["sodium"] == 140
+    assert "price" not in saved_document
+    assert "price" not in response.json()
+
+
+def test_old_item_has_unknown_sodium(authenticated_client):
+    from bson import ObjectId
+
+    item_id = ObjectId()
+    mock_db = AsyncMock()
+    mock_db.cart_items.find_one.return_value = {
+        "_id": item_id, "item_name": "Old item", "price": 99,
+    }
+    with patch.object(cart_routes, "get_database", return_value=mock_db):
+        response = authenticated_client.get(f"/api/cart/{item_id}")
+    assert response.status_code == 200
+    assert response.json()["sodium"] is None
+    assert "price" not in response.json()
+
+
+def test_rename_preserves_sodium_and_cleans_legacy_price(authenticated_client):
+    from bson import ObjectId
+
+    item_id = ObjectId()
+    mock_db = AsyncMock()
+    mock_db.cart_items.find_one_and_update.return_value = {
+        "_id": item_id, "item_name": "Correct name", "sodium": 400,
+    }
+    with patch.object(cart_routes, "get_database", return_value=mock_db):
+        response = authenticated_client.put(f"/api/cart/{item_id}", json={"item_name": "  Correct name  "})
+    assert response.status_code == 200
+    assert response.json()["item_name"] == "Correct name"
+    assert response.json()["sodium"] == 400
+    query, update = mock_db.cart_items.find_one_and_update.call_args.args
+    assert query["user_id"] == TEST_USER_ID
+    assert update == {"$set": {"item_name": "Correct name"}, "$unset": {"price": ""}}
+
+
+@pytest.mark.parametrize('changes', [{"item_name": "   "}, {"item_name": "x" * 201}, {"sodium": -1}])
+def test_invalid_cart_edits_rejected(authenticated_client, changes):
+    mock_db = AsyncMock()
+    with patch.object(cart_routes, "get_database", return_value=mock_db):
+        response = authenticated_client.put('/api/cart/507f1f77bcf86cd799439011', json=changes)
+    assert response.status_code == 422
+    mock_db.cart_items.find_one_and_update.assert_not_awaited()

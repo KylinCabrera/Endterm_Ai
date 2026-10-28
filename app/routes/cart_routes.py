@@ -24,7 +24,7 @@ def parse_item_doc(doc: dict) -> dict:
         "carbs": doc.get("carbs", 0.0),
         "fat": doc.get("fat", 0.0),
         "quantity": doc.get("quantity", 1),
-        "price": doc.get("price", 0.0),
+        "sodium": doc.get("sodium"),
     }
 
 
@@ -120,7 +120,7 @@ async def update_cart_item(
 
     updated_doc = await db.cart_items.find_one_and_update(
         get_item_filter(item_id, user_id),
-        {"$set": fields_to_update},
+        {"$set": fields_to_update, "$unset": {"price": ""}},
         return_document=ReturnDocument.AFTER,
     )
 

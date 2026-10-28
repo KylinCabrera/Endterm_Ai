@@ -1,5 +1,8 @@
-from pydantic import BaseModel, EmailStr, Field
-from typing import List, Optional
+from pydantic import BaseModel, EmailStr, Field, StringConstraints
+from typing import Annotated, List, Optional
+
+
+ItemName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
 
 
 class UserProfile(BaseModel):
@@ -24,7 +27,7 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 class CartItemCreate(BaseModel):
-    item_name: str = Field(min_length=1, max_length=200)
+    item_name: ItemName
 
     calories: float = Field(
         default=0, ge=0, allow_inf_nan=False
@@ -40,15 +43,14 @@ class CartItemCreate(BaseModel):
     )
 
     quantity: int = Field(default=1, ge=1)
-    price: float = Field(
-        default=0, ge=0, allow_inf_nan=False
+    sodium: Optional[float] = Field(
+        default=None, ge=0, allow_inf_nan=False,
+        description="Sodium in milligrams per labeled serving; null when unknown.",
     )
 
 
 class CartItemUpdate(BaseModel):
-    item_name: Optional[str] = Field(
-        default=None, min_length=1, max_length=200
-    )
+    item_name: Optional[ItemName] = None
 
     calories: Optional[float] = Field(
         default=None, ge=0, allow_inf_nan=False
@@ -64,7 +66,7 @@ class CartItemUpdate(BaseModel):
     )
 
     quantity: Optional[int] = Field(default=None, ge=1)
-    price: Optional[float] = Field(
+    sodium: Optional[float] = Field(
         default=None, ge=0, allow_inf_nan=False
     )
 
