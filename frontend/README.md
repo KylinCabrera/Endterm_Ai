@@ -2,22 +2,14 @@
 
 ## Label photos and camera access
 
-The dashboard's **Scan a product** drop zone opens one standard
-`<input type="file" accept="image/*" />`, without `capture`. Tap or click anywhere
-inside the box (including the preview), or use Enter/Space while focused, to open
-the native picker. Drag-and-drop and selecting the same image again are supported.
-There are no separate camera/upload buttons in this card. The browser and OS
-decide which sources the picker offers: mobile devices may offer camera and
-gallery choices, while desktop file pickers generally do not offer webcam capture.
-
-The separate `ScanLabelModal` still uses `ImagePicker`. **Upload photo** uses an
+The dashboard and label scanner share `ImagePicker`. **Upload photo** uses an
 `accept="image/*"` input without `capture`, allowing the system photo picker.
 **Use camera** opens a separate `capture="environment"` input on Android and
 iPhone/iPad, requesting the rear camera. Native menus and capture support depend
 on the browser/OS; a web page cannot force every Android picker to show both
 camera and gallery entries. The two explicit buttons keep both paths available.
 
-In that separate scanner, desktop **Use camera** opens a webcam preview with a camera selector when
+On desktop, **Use camera** opens a webcam preview with a camera selector when
 multiple devices are available. Captured frames become JPEG files and follow
 the same validation and scan flow as uploads. Cancel, Escape, camera switching,
 and navigating away release the stream, including late permission responses.
@@ -33,12 +25,9 @@ Run `npm test`, `npm run lint`, and `npm run build` for automated checks. Before
 release, also check on real devices (native system pickers cannot be verified by
 desktop browser emulation):
 
-- Dashboard on mobile and desktop: open the drop zone, select a photo, cancel the
-  picker, reselect the same image, drag-and-drop, and scan the resulting photo.
-  Check the native camera option on mobile browsers that offer it.
-- Separate scanner on Android Chrome and iPhone/iPad Safari: take a photo or
-  upload from the gallery.
-- Separate scanner on desktop Chrome/Edge/Firefox/Safari over HTTPS: allow camera access, capture and
+- Android Chrome and iPhone/iPad Safari: take a photo, cancel capture, upload from
+  the gallery, reselect the same image, and scan the resulting photo.
+- Desktop Chrome/Edge/Firefox/Safari over HTTPS: allow camera access, capture and
   scan, switch integrated/external cameras, and close with Cancel and Escape.
 - Deny permission, unplug the camera, close while permission is pending, and
   navigate away; confirm errors allow recovery and the camera indicator stops.

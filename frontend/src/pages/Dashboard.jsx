@@ -23,6 +23,7 @@ import AppHeader from '../components/AppHeader'
 import ScanResults from '../components/ScanResults'
 import SodiumIndicator from '../components/SodiumIndicator'
 import EditableItemName from '../components/EditableItemName'
+import ImagePicker from '../components/ImagePicker'
 
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0)
 
@@ -310,20 +311,6 @@ const removeItem = async item => {
               </p>
             </div>
 
-            <input
-              ref={inputRef}
-              type="file"
-              accept="image/*"
-              disabled={scanning || saving}
-              hidden
-              aria-label="Choose a label photo"
-              onChange={event => {
-                const selectedFile = event.target.files?.[0]
-                event.target.value = ''
-                pickFile(selectedFile)
-              }}
-            />
-
             <div
               onDragOver={(e) => {
                 e.preventDefault()
@@ -337,7 +324,7 @@ const removeItem = async item => {
               }}
               role="button"
               tabIndex={scanning || saving ? -1 : 0}
-              aria-label="Choose a label photo"
+              aria-label="Choose a label photo to upload"
               aria-disabled={scanning || saving}
               onClick={() => { if (!scanning && !saving) inputRef.current?.click() }}
               onKeyDown={event => {
@@ -358,7 +345,7 @@ const removeItem = async item => {
                     className="max-h-44 mx-auto rounded-xl object-contain"
                   />
                   <p className="text-[11px] font-semibold text-brand-dark">
-                    Tap or click to choose a different photo
+                    Click to choose a different photo
                   </p>
                 </div>
               ) : (
@@ -371,7 +358,7 @@ const removeItem = async item => {
                     Use a clear image of the nutrition facts panel.
                   </p>
                   <p className="mt-3 inline-flex items-center gap-1 text-[10px] font-semibold">
-                    Tap or click to choose a photo <ArrowRight className="w-3 h-3" />
+                    Browse photos <ArrowRight className="w-3 h-3" />
                   </p>
                   <p className="mt-1 inline-flex items-center gap-1 text-[9px] text-muted">
                     <FileImage className="w-3 h-3" /> Image files
@@ -379,6 +366,8 @@ const removeItem = async item => {
                 </>
               )}
             </div>
+
+            <ImagePicker inputRef={inputRef} onSelect={pickFile} disabled={scanning || saving} />
 
             {scanError && (
               <p role="alert" className="mt-4 text-xs text-rose-700 bg-rose-50 border border-rose-100 rounded-xl p-3">
