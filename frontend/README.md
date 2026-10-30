@@ -1,5 +1,37 @@
 # React + Vite
 
+## Label photos and camera access
+
+The dashboard and label scanner share `ImagePicker`. **Upload photo** uses an
+`accept="image/*"` input without `capture`, allowing the system photo picker.
+**Use camera** opens a separate `capture="environment"` input on Android and
+iPhone/iPad, requesting the rear camera. Native menus and capture support depend
+on the browser/OS; a web page cannot force every Android picker to show both
+camera and gallery entries. The two explicit buttons keep both paths available.
+
+On desktop, **Use camera** opens a webcam preview with a camera selector when
+multiple devices are available. Captured frames become JPEG files and follow
+the same validation and scan flow as uploads. Cancel, Escape, camera switching,
+and navigating away release the stream, including late permission responses.
+
+Webcam access requires **HTTPS** (or `localhost` for development), permission in
+both the browser and operating system, and a connected camera. Plain HTTP LAN
+addresses do not support browser webcam access. Embedded deployments must also
+permit camera access in their iframe/Permissions Policy. Uploads remain available
+when camera access fails. The API still accepts JPEG, PNG, and WebP up to 10 MB;
+unsupported formats such as HEIC display the existing validation message.
+
+Run `npm test`, `npm run lint`, and `npm run build` for automated checks. Before
+release, also check on real devices (native system pickers cannot be verified by
+desktop browser emulation):
+
+- Android Chrome and iPhone/iPad Safari: take a photo, cancel capture, upload from
+  the gallery, reselect the same image, and scan the resulting photo.
+- Desktop Chrome/Edge/Firefox/Safari over HTTPS: allow camera access, capture and
+  scan, switch integrated/external cameras, and close with Cancel and Escape.
+- Deny permission, unplug the camera, close while permission is pending, and
+  navigate away; confirm errors allow recovery and the camera indicator stops.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
