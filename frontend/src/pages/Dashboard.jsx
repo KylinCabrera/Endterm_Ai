@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useUser, useAuth } from '@clerk/clerk-react'
 import { apiRequest } from '../lib/api'
-import { IMAGE_ACCEPT, validateImage } from '../lib/imageUpload'
+import { validateImage } from '../lib/imageUpload'
 import {
   ArrowRight,
   Clock,
@@ -23,6 +23,7 @@ import AppHeader from '../components/AppHeader'
 import ScanResults from '../components/ScanResults'
 import SodiumIndicator from '../components/SodiumIndicator'
 import EditableItemName from '../components/EditableItemName'
+import ImagePicker from '../components/ImagePicker'
 
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0)
 
@@ -321,20 +322,21 @@ const removeItem = async item => {
                 setDragOver(false)
                 pickFile(e.dataTransfer.files?.[0])
               }}
-              onClick={() => inputRef.current?.click()}
+              role="button"
+              tabIndex={scanning || saving ? -1 : 0}
+              aria-label="Choose a label photo to upload"
+              aria-disabled={scanning || saving}
+              onClick={() => { if (!scanning && !saving) inputRef.current?.click() }}
+              onKeyDown={event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  if (!scanning && !saving) inputRef.current?.click()
+                }
+              }}
               className={`mt-6 h-64 rounded-2xl border border-dashed cursor-pointer flex flex-col items-center justify-center text-center transition ${
                 dragOver ? 'border-brand bg-[#e6ecd5]/50' : 'border-[#cfd8b8] bg-white/40'
               }`}
             >
-              <input
-                ref={inputRef}
-                type="file"
-                accept={IMAGE_ACCEPT}
-                disabled={scanning || saving}
-                hidden
-                onChange={(e) => pickFile(e.target.files?.[0])}
-              />
-
               {previewUrl ? (
                 <div className="space-y-2 px-4">
                   <img
@@ -365,8 +367,10 @@ const removeItem = async item => {
               )}
             </div>
 
+            <ImagePicker inputRef={inputRef} onSelect={pickFile} disabled={scanning || saving} />
+
             {scanError && (
-              <p className="mt-4 text-xs text-rose-700 bg-rose-50 border border-rose-100 rounded-xl p-3">
+              <p role="alert" className="mt-4 text-xs text-rose-700 bg-rose-50 border border-rose-100 rounded-xl p-3">
                 {scanError}
               </p>
             )}
