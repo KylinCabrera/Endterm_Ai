@@ -1,4 +1,6 @@
-export const IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp'
+// A broad image filter lets mobile browsers offer their native photo sources.
+// Keep validation separate: the scan API accepts JPEG, PNG, and WebP only.
+export const IMAGE_ACCEPT = 'image/*'
 const IMAGE_EXTENSION = /\.(jpe?g|png|webp)$/i
 
 export function validateImage(file) {
