@@ -105,7 +105,8 @@ export default function WebcamCapture({ onCapture, onClose }) {
         <button type="button" onClick={close} className="rounded-lg border border-line px-3 py-2 text-sm">Cancel</button>
       </div>
       <p className="mt-2 text-sm text-muted">Hold the nutrition facts panel in view, then take a photo.</p>
-      <video ref={videoRef} autoPlay playsInline muted onCanPlay={() => setReady(true)} aria-label="Live camera preview" className="mt-4 aspect-video w-full rounded-xl bg-black object-contain" />
+      {/* Keep label text readable: never mirror the live preview. */}
+      <video ref={videoRef} autoPlay playsInline muted onCanPlay={() => setReady(true)} aria-label="Live camera preview" style={{ transform: 'none', scale: 'none' }} className="mt-4 aspect-video w-full rounded-xl bg-black object-contain" />
       {!ready && !error && <p role="status" className="mt-3 text-sm text-muted">Starting camera. Allow access if your browser asks.</p>}
       {devices.length > 1 && (
         <div className="mt-3">

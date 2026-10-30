@@ -33,6 +33,7 @@ export async function capturePhoto(video, canvas = document.createElement('canva
   canvas.height = Math.round(video.videoHeight * scale)
   const context = canvas.getContext('2d')
   if (!context) throw new Error('Could not capture a photo. Please upload a photo instead.')
+  // Draw the original frame without horizontal flips so label text stays readable.
   context.drawImage(video, 0, 0, canvas.width, canvas.height)
   const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92))
   if (!blob) throw new Error('Could not capture a photo. Try again or upload a photo.')

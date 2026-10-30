@@ -2,7 +2,10 @@
 
 ## Label photos and camera access
 
-The dashboard and label scanner share `ImagePicker`. **Upload photo** uses an
+The dashboard and label scanner share `ImagePicker`. In **Scan a product**, both
+choices sit inside the dashed drop zone, including when a preview is shown; no
+camera or upload buttons sit below it. The preview also opens the photo picker,
+and drag-and-drop and keyboard access remain available. **Upload photo** uses an
 `accept="image/*"` input without `capture`, allowing the system photo picker.
 **Use camera** opens a separate `capture="environment"` input on Android and
 iPhone/iPad, requesting the rear camera. Native menus and capture support depend
@@ -10,7 +13,9 @@ on the browser/OS; a web page cannot force every Android picker to show both
 camera and gallery entries. The two explicit buttons keep both paths available.
 
 On desktop, **Use camera** opens a webcam preview with a camera selector when
-multiple devices are available. Captured frames become JPEG files and follow
+multiple devices are available. Both the live preview and captured photo preserve
+the camera frame's orientation without mirroring, so label text stays readable.
+Captured frames become JPEG files and follow
 the same validation and scan flow as uploads. Cancel, Escape, camera switching,
 and navigating away release the stream, including late permission responses.
 
@@ -29,6 +34,8 @@ desktop browser emulation):
   the gallery, reselect the same image, and scan the resulting photo.
 - Desktop Chrome/Edge/Firefox/Safari over HTTPS: allow camera access, capture and
   scan, switch integrated/external cameras, and close with Cancel and Escape.
+  Hold printed text in view and confirm it reads normally in both the live
+  preview and the captured photo.
 - Deny permission, unplug the camera, close while permission is pending, and
   navigate away; confirm errors allow recovery and the camera indicator stops.
 
