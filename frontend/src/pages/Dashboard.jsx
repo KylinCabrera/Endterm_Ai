@@ -16,7 +16,6 @@ import {
   ShoppingBasket,
   Trash2,
   Upload,
-  FileImage,
   CornerLeftDown,
 } from 'lucide-react'
 import AppHeader from '../components/AppHeader'
@@ -314,7 +313,7 @@ const removeItem = async item => {
             <div
               onDragOver={(e) => {
                 e.preventDefault()
-                setDragOver(true)
+                if (!scanning && !saving) setDragOver(true)
               }}
               onDragLeave={() => setDragOver(false)}
               onDrop={(e) => {
@@ -322,32 +321,30 @@ const removeItem = async item => {
                 setDragOver(false)
                 pickFile(e.dataTransfer.files?.[0])
               }}
-              role="button"
-              tabIndex={scanning || saving ? -1 : 0}
-              aria-label="Choose a label photo to upload"
+              role="group"
+              aria-label="Label photo drop zone"
               aria-disabled={scanning || saving}
-              onClick={() => { if (!scanning && !saving) inputRef.current?.click() }}
-              onKeyDown={event => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault()
-                  if (!scanning && !saving) inputRef.current?.click()
-                }
-              }}
-              className={`mt-6 h-64 rounded-2xl border border-dashed cursor-pointer flex flex-col items-center justify-center text-center transition ${
+              className={`mt-6 min-h-64 rounded-2xl border border-dashed px-4 py-5 flex flex-col items-center justify-center text-center transition ${
                 dragOver ? 'border-brand bg-[#e6ecd5]/50' : 'border-[#cfd8b8] bg-white/40'
               }`}
             >
               {previewUrl ? (
-                <div className="space-y-2 px-4">
+                <button
+                  type="button"
+                  onClick={() => inputRef.current?.click()}
+                  disabled={scanning || saving}
+                  aria-label="Choose a different label photo"
+                  className="w-full space-y-2 rounded-xl cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-60"
+                >
                   <img
                     src={previewUrl}
                     alt="Label preview"
                     className="max-h-44 mx-auto rounded-xl object-contain"
                   />
-                  <p className="text-[11px] font-semibold text-brand-dark">
-                    Click to choose a different photo
-                  </p>
-                </div>
+                  <span className="block text-[11px] font-semibold text-brand-dark">
+                    Tap or click to choose a different photo
+                  </span>
+                </button>
               ) : (
                 <>
                   <div className="w-12 h-12 rounded-xl bg-[#e6ecd5] flex items-center justify-center">
@@ -357,17 +354,10 @@ const removeItem = async item => {
                   <p className="mt-1 text-[10px] text-muted">
                     Use a clear image of the nutrition facts panel.
                   </p>
-                  <p className="mt-3 inline-flex items-center gap-1 text-[10px] font-semibold">
-                    Browse photos <ArrowRight className="w-3 h-3" />
-                  </p>
-                  <p className="mt-1 inline-flex items-center gap-1 text-[9px] text-muted">
-                    <FileImage className="w-3 h-3" /> Image files
-                  </p>
                 </>
               )}
+              <ImagePicker inputRef={inputRef} onSelect={pickFile} disabled={scanning || saving} />
             </div>
-
-            <ImagePicker inputRef={inputRef} onSelect={pickFile} disabled={scanning || saving} />
 
             {scanError && (
               <p role="alert" className="mt-4 text-xs text-rose-700 bg-rose-50 border border-rose-100 rounded-xl p-3">

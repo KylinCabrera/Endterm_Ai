@@ -31,15 +31,15 @@ export default function ImagePicker({ onSelect, disabled = false, inputRef }) {
     <div className="mt-4">
       <input ref={uploadRef} type="file" accept={IMAGE_ACCEPT} disabled={disabled} hidden onChange={selectPhoto} aria-label="Upload label photo" />
       <input ref={nativeCameraRef} type="file" accept={IMAGE_ACCEPT} capture="environment" disabled={disabled} hidden onChange={selectPhoto} aria-label="Take label photo" />
-      <div className="flex flex-wrap gap-3">
-        <button type="button" onClick={openCamera} disabled={disabled} className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-dark px-4 py-3 text-sm font-semibold text-white hover:bg-brand disabled:opacity-50">
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        <button type="button" onClick={openCamera} disabled={disabled} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand-dark px-3 py-2 text-xs font-semibold text-white hover:bg-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:opacity-50">
           <Camera className="h-4 w-4" /> Use camera
         </button>
-        <button type="button" onClick={() => uploadRef.current?.click()} disabled={disabled} className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-3 text-sm font-semibold hover:bg-cream disabled:opacity-50">
+        <button type="button" onClick={() => uploadRef.current?.click()} disabled={disabled} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-line bg-white px-3 py-2 text-xs font-semibold hover:bg-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:opacity-50">
           <Upload className="h-4 w-4" /> Upload photo
         </button>
       </div>
-      <p className="mt-2 text-[11px] text-muted">Take a clear photo or choose one from your gallery. JPEG, PNG, or WebP, up to 10 MB.</p>
+      <p className="mt-3 text-center text-[10px] text-muted">JPEG, PNG, or WebP, up to 10 MB.</p>
       {webcamOpen && !disabled && (
         <WebcamCapture
           onClose={() => setWebcamOpen(false)}
