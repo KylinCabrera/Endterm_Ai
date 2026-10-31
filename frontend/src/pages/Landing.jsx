@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Leaf, ArrowRight, Sparkles, Check, ScanLine, ShieldCheck } from 'lucide-react'
+import LandingInfo from '../components/LandingInfo'
 
 export default function Landing() {
   return (
@@ -118,6 +119,8 @@ export default function Landing() {
           </div>
         </div>
       </main>
+
+      <LandingInfo />
     </div>
   )
 }
