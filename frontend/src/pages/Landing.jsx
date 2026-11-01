@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Leaf, ArrowRight, Sparkles, Check, ScanLine, ShieldCheck } from 'lucide-react'
 import HowToUse from '../components/HowToUse'
 import LandingInfo from '../components/LandingInfo'
+import SiteFooter from '../components/SiteFooter'
 
 export default function Landing() {
   return (
@@ -121,8 +122,9 @@ export default function Landing() {
         </div>
       </main>
 
-      <HowToUse />
       <LandingInfo />
+      <HowToUse />
+       <SiteFooter />
     </div>
   )
 }

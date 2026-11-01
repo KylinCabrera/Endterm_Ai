@@ -1,6 +1,3 @@
-import { Link } from 'react-router-dom'
-import { ArrowRight } from 'lucide-react'
-
 const STEPS = [
   {
     number: '01',
@@ -50,13 +47,6 @@ export default function HowToUse() {
             </li>
           ))}
         </ol>
-
-        <Link
-          to="/sign-up"
-          className="mt-10 inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-[#066b4c] text-white text-sm font-semibold shadow-md hover:bg-[#055a40] transition"
-        >
-          Start with a label <ArrowRight className="w-4 h-4" />
-        </Link>
       </div>
     </section>
   )
