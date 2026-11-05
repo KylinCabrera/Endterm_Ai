@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import SodiumIndicator from './SodiumIndicator'
+import StarRating from './StarRating'
 import { formatNutrition } from '../lib/nutrition'
+import { scoreNutrition } from '../lib/nutritionScore'
 
 export default function ScanResults({ result, onSave, onDiscard, saving, error }) {
   const [name, setName] = useState(result.item_name)
   const validName = name.trim().length > 0 && name.trim().length <= 200
+  const rating = scoreNutrition(result)
 
   return (
     <form
@@ -43,6 +46,40 @@ export default function ScanResults({ result, onSave, onDiscard, saving, error }
           </div>
         ))}
       </dl>
+
+      <div className="rounded-lg bg-cream p-4">
+        <p className="text-[11px] font-semibold text-muted">Recommendation</p>
+        {rating.stars ? (
+          <>
+            <div className="mt-2 flex items-center gap-3">
+              <StarRating value={rating.stars} />
+              <span className="text-sm font-semibold">{rating.label}</span>
+            </div>
+            <ul className="mt-3 space-y-1">
+              {rating.reasons.map((reason, index) => (
+                <li key={index} className="flex items-center gap-2 text-[11px]">
+                  <span
+                    className={`h-2 w-2 rounded-full ${
+                      reason.type === 'good'
+                        ? 'bg-brand'
+                        : reason.type === 'warn'
+                          ? 'bg-amber-400'
+                          : 'bg-rose-500'
+                    }`}
+                  />
+                  {reason.text}
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <p className="mt-2 text-xs text-muted">Not enough data to rate this product.</p>
+        )}
+        <p className="mt-3 text-[10px] text-muted">
+          Based on sodium, fat, and protein per serving. Informational only, not medical advice.
+        </p>
+      </div>
+
       <SodiumIndicator sodium={result.sodium} />
       <p className="text-[11px] text-muted">
         Per-serving guide: low ≤140 mg; moderate &gt;140–400 mg; high &gt;400 mg.
