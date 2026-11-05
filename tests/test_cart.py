@@ -46,6 +46,11 @@ def test_cart_requires_login():
     assert response.status_code == 401
 
 
+def test_malformed_cart_json(authenticated_client):
+    response = authenticated_client.post('/api/cart', content='{', headers={'Content-Type': 'application/json'})
+    assert response.status_code == 422
+
+
 def test_cart_invalid_id_format(authenticated_client):
     response = authenticated_client.get(
         "/api/cart/invalid-object-id"

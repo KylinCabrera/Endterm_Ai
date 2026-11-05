@@ -218,3 +218,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Dependencies, local editor state, and collected release evidence
+node_modules/
+.vscode/
+.ci-metrics/
+release-evidence/

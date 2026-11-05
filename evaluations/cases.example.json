@@ -1,0 +1,14 @@
+[
+  {
+    "id": "replace-with-reviewed-clear-label",
+    "image": "images/replace-with-your-label.jpg",
+    "expected_status": 200,
+    "expected": {"item_name": "Replace example values", "calories": 150, "protein": 5, "carbs": 27, "fat": 3, "sodium": 140},
+    "absolute_tolerance": 0.5
+  },
+  {
+    "id": "replace-with-reviewed-non-label",
+    "image": "images/replace-with-your-non-label.png",
+    "expected_status": 422
+  }
+]

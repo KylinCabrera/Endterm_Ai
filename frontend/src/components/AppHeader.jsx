@@ -2,19 +2,15 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { SignedIn, useClerk, useUser } from '@clerk/clerk-react'
 import { Leaf, ArrowRight, Scale, Wifi, WifiOff } from 'lucide-react'
-
-const API_ROOT = (
-  import.meta.env.VITE_API_URL ||
-  'https://nutrigo-ai-backend.onrender.com'
-).replace(/\/+$/, '')
+import { getStatus } from '../lib/api'
 
 function ServiceStatus() {
   const [state, setState] = useState('checking') // checking | ok | down
 
   useEffect(() => {
     let cancelled = false
-    fetch(`${API_ROOT}/`)
-      .then((r) => !cancelled && setState(r.ok ? 'ok' : 'down'))
+    getStatus()
+      .then(() => !cancelled && setState('ok'))
       .catch(() => !cancelled && setState('down'))
     return () => {
       cancelled = true

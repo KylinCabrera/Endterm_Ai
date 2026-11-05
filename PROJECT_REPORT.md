@@ -2,6 +2,8 @@
 
 Prepared: October 28, 2026. Assessment basis: current local source code and the supplied Sprint 3 and Sprint 4 screenshots. This is a documentation review; tests, live services, hosting settings, and remote CI runs were not executed or verified. Team contributions below follow the team's supplied attribution.
 
+> Historical planning snapshot: this report predates the current hardening changes. Statements below about fallback models, camera support, missing guards, and CI describe that earlier review. Use the [current architecture](docs/ARCHITECTURE.md), [setup guide](README.md), and [release checklist](docs/RELEASE_CHECKLIST.md) for current behavior and pending external evidence. Proposed tasks and unchecked boxes here are not completion records.
+
 ## 1. Project overview
 
 NutriGo AI is a smart, full-stack grocery and nutrition assistant designed to help users manage food purchases, monitor dietary intake, and stay within the set calorie limit. Powered by Google's Gemini 2.5 Flash vision model via the `google-genai` SDK, the platform allows users to upload or capture photos of physical nutrition labels to automatically extract product names, calorie counts, and macronutrients—including protein, carbohydrates, and fats—into structured data. This extracted information instantly populates a dynamic shopping cart stored in MongoDB Atlas (`nutrigo_db.cart_items`), enabling real-time calculations of overall nutritional totals, and macro distributions.

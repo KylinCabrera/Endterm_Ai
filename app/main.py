@@ -1,11 +1,12 @@
 import os
+from contextlib import asynccontextmanager
 import sentry_sdk
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, EmailStr
 from app.routes import ai_routes, cart_routes, profile_routes
 from app.database import get_database
+from app.ai_limits import scan_limits
 from fastapi.responses import JSONResponse
 from pymongo.errors import PyMongoError
 
@@ -23,15 +24,20 @@ if SENTRY_DSN:
 else:
     print("⚠️ SENTRY_DSN is missing or empty!")
 
-app = FastAPI(title="NutriGo AI API", version="1.0.0")
+@asynccontextmanager
+async def lifespan(app):
+    scan_limits()
+    await get_database().ai_usage.create_index('expires_at', expireAfterSeconds=0)
+    yield
 
-# Parse allowed origins cleanly from environment or fallback to wildcards for preview deployments
-raw_frontend_urls = os.getenv("FRONTEND_URL", "*")
 
-if raw_frontend_urls == "*":
-    allowed_origins = ["*"]
-else:
-    allowed_origins = [url.strip() for url in raw_frontend_urls.split(",") if url.strip()]
+app = FastAPI(title="NutriGo AI API", version="1.0.0", lifespan=lifespan)
+
+# Share an explicit origin list with Clerk token-origin validation.
+raw_frontend_urls = os.getenv("FRONTEND_URL", "http://localhost:5173")
+allowed_origins = [url.strip().rstrip('/') for url in raw_frontend_urls.split(',') if url.strip()]
+if not allowed_origins or '*' in allowed_origins:
+    raise RuntimeError('FRONTEND_URL must contain explicit allowed frontend origins.')
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,27 +45,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=['Retry-After'],
 )
-
-# User Registration Schema
-class UserRegister(BaseModel):
-    email: EmailStr
-    password: str
-    name: str | None = None
-
-# Standalone Registration Route
-@app.post("/api/register")
-async def register_user(user_data: UserRegister):
-    print(f"Received user registration for: {user_data.email}")
-    
-    return {
-        "status": "success",
-        "message": "User registered successfully",
-        "user": {
-            "email": user_data.email,
-            "name": user_data.name
-        }
-    }
 
 # Include API route modules
 app.include_router(ai_routes.router)
@@ -79,4 +66,9 @@ def root():
 @app.get("/health")
 async def health_check():
     await get_database().command("ping")
-    return {"status": "ok", "database": "connected", "environment": os.getenv("ENV", "development")}
+    return {
+        "status": "ok", "database": "connected",
+        "environment": os.getenv("ENV", "development"),
+        "version": app.version,
+        "revision": os.getenv('RENDER_GIT_COMMIT') or os.getenv('APP_REVISION', 'local'),
+    }

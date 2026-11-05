@@ -1,3 +1,5 @@
+import { requestJson } from './http.js';
+
 const API_BASE = (
   import.meta.env.VITE_API_URL ||
   'https://nutrigo-ai-backend.onrender.com'
@@ -5,43 +7,7 @@ const API_BASE = (
 
 // Shared request handler
 async function sendRequest(path, options = {}, token = null) {
-  const isFormData = options.body instanceof FormData;
-
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      ...(!isFormData
-        ? { 'Content-Type': 'application/json' }
-        : {}),
-      ...options.headers,
-      ...(token
-        ? { Authorization: `Bearer ${token}` }
-        : {}),
-    },
-  });
-
-  const data =
-    response.status === 204
-      ? null
-      : await response.json().catch(() => null);
-
-  if (!response.ok) {
-    let message = `Request failed (${response.status})`;
-
-    if (typeof data?.detail === 'string') {
-      message = data.detail;
-    } else if (Array.isArray(data?.detail)) {
-      message = data.detail
-        .map(error => error.msg)
-        .join('; ');
-    } else if (typeof data?.message === 'string') {
-      message = data.message;
-    }
-
-    throw new Error(message);
-  }
-
-  return data;
+  return requestJson(`${API_BASE}${path}`, options, token);
 }
 
 // Authenticated Clerk requests
