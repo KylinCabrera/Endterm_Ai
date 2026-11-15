@@ -1,0 +1,4 @@
+# Historical credentials replaced by the repository owner.
+# Exceptions apply only to these findings in this specific old commit.
+065454ca7983604de3ccfb6cd4305755dadfab89:.env.example:generic-api-key:3
+065454ca7983604de3ccfb6cd4305755dadfab89:.env.example:generic-api-key:6

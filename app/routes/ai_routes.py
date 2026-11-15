@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from app.clerk_auth import get_current_user_id
 from app.models import ItemName
+from app.ai_limits import reserve_scan
 
 router = APIRouter(prefix='/api/ai', tags=['AI Integration'])
 
@@ -76,9 +77,9 @@ async def scan_nutrition_label(
     if not contents or len(contents) > 10 * 1024 * 1024:
         raise HTTPException(400, 'Choose a nonempty image smaller than 10 MB.')
 
-    contents = await asyncio.to_thread(normalize_image, contents)
-
     try:
+        contents = await asyncio.to_thread(normalize_image, contents)
+        await reserve_scan(user_id)
         # Both the HTTP call and the whole AI operation have bounded timeouts.
         async with asyncio.timeout(45):
             async with genai.Client(

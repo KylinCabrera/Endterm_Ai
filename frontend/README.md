@@ -1,5 +1,11 @@
 # React + Vite
 
+## Local setup
+
+Use Node.js 22. From this directory, copy `.env.example` to `.env`, set `VITE_API_URL=http://localhost:8000` and the Clerk publishable key, then run `npm ci` and `npm run dev`. Start the backend separately using the [root setup guide](../README.md). Use the same Clerk application on both sides. Vite environment settings are embedded at build time, so redeploy after changing them.
+
+For hosting, failure checks, and release evidence, follow the [release checklist](../docs/RELEASE_CHECKLIST.md).
+
 ## Label photos and camera access
 
 The dashboard and label scanner share `ImagePicker`. In **Scan a product**, both

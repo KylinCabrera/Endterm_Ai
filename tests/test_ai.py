@@ -26,6 +26,7 @@ def client(monkeypatch):
     app.dependency_overrides[ai.get_current_user_id] = lambda: 'test-user'
     monkeypatch.setenv('GEMINI_API_KEY', 'test-key')
     monkeypatch.setenv('GEMINI_MODEL', 'test-model')
+    monkeypatch.setattr(ai, 'reserve_scan', AsyncMock())
     return TestClient(app)
 
 
@@ -95,6 +96,26 @@ def test_scan_failures(client, monkeypatch, outcome, status):
     generate = mock_provider(monkeypatch, outcome)
     assert scan(client).status_code == status
     assert generate.await_count == 1
+
+
+def test_rate_limit_stops_provider(client, monkeypatch):
+    generate = mock_provider(monkeypatch, SimpleNamespace(text=json.dumps(NUTRITION)))
+    monkeypatch.setattr(ai, 'reserve_scan', AsyncMock(side_effect=ai.HTTPException(
+        429, 'Too many scans.', headers={'Retry-After': '30'})))
+    result = scan(client)
+    assert result.status_code == 429
+    assert result.headers['retry-after'] == '30'
+    generate.assert_not_awaited()
+
+
+@pytest.mark.parametrize('text', ['not json', '', '{"item_name":'])
+def test_malformed_provider_json(client, monkeypatch, text):
+    mock_provider(monkeypatch, SimpleNamespace(text=text))
+    assert scan(client).status_code == 422
+
+
+def test_missing_upload(client):
+    assert client.post('/api/ai/scan-label').status_code == 422
 
 
 @pytest.mark.parametrize('data,mime', [(b'', 'image/png'), (b'x' * (10 * 1024 * 1024 + 1), 'image/png'), (b'gif', 'image/gif'), (b'not an image', 'image/png'), (image_bytes('GIF'), 'image/png')], ids=['empty', 'oversized', 'unsupported', 'corrupt', 'disguised'])
