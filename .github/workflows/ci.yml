@@ -86,7 +86,22 @@ jobs:
         with:
           fetch-depth: 0
       - name: Scan available Git history for secrets (redacted)
-        run: docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/repo:ro" zricethezav/gitleaks:v8.24.2 git /repo --log-opts=--all --redact --exit-code 1
+        run: |
+          mkdir -p "$RUNNER_TEMP/gitleaks-report"
+          docker run --rm --user "$(id -u):$(id -g)" \
+            -v "$PWD:/repo:ro" \
+            -v "$RUNNER_TEMP/gitleaks-report:/report" \
+            zricethezav/gitleaks:v8.24.2 git /repo \
+            --log-opts=--all --redact=100 --verbose --exit-code 1 \
+            --report-format json --report-path /report/findings.json
+      - name: Upload redacted secret scan report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: redacted-secret-scan-report
+          path: ${{ runner.temp }}/gitleaks-report/findings.json
+          if-no-files-found: warn
+          retention-days: 7
 
   deploy:
     needs: [backend, frontend, secrets]
