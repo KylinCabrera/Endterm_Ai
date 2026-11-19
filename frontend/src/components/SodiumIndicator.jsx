@@ -13,7 +13,7 @@ export default function SodiumIndicator({ sodium }) {
   }
   const tone = tones[summary.level]
   return (
-    <div className="mt-3 space-y-2">
+    <div className="mt-2 space-y-1.5">
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
         <span><strong>{formatNutrition(sodium)} mg</strong> sodium / serving</span>
         <span className={`rounded-full px-2 py-1 font-semibold ${tone.badge}`}>
@@ -31,7 +31,7 @@ export default function SodiumIndicator({ sodium }) {
       >
         <div className={`h-full rounded-full ${tone.bar}`} style={{ width: `${summary.progress}%` }} />
       </div>
-      <p className="text-[11px] text-muted">
+      <p className="text-[11px] leading-4 text-muted">
         {formatNutrition(summary.percent)}% of the 2,000 mg/day reference in one serving.
       </p>
       {summary.level === 'High' && (
