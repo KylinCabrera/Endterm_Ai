@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useUser, useAuth } from '@clerk/clerk-react'
 import { apiRequest } from '../lib/api'
 import { validateImage } from '../lib/imageUpload'
+import { scoreNutrition } from '../lib/nutritionScore'
 import {
   ArrowRight,
   Clock,
@@ -300,7 +301,7 @@ const removeItem = async item => {
                 </div>
                 <div>
                   <p className="text-[9px] tracking-widest font-semibold text-muted">
-                    THE LABEL READER
+                    QUICK AND EASY
                   </p>
                   <h2 className="font-serif font-bold text-2xl">Scan a product</h2>
                 </div>
@@ -310,6 +311,14 @@ const removeItem = async item => {
               </p>
             </div>
 
+            {scanResult ? (
+              <div className="mt-5">
+                <div className="flex justify-end">
+                  <button type="button" onClick={() => { setScanResult(null); setSaveError(''); setScanError('') }} className="text-xs font-semibold text-brand-dark hover:text-brand">← Scan Again</button>
+                </div>
+                <ScanResults result={scanResult} onSave={saveScan} saving={saving} error={saveError} onDiscard={() => { setScanResult(null); setSaveError('') }} />
+              </div>
+            ) : <>
             <div
               onDragOver={(e) => {
                 e.preventDefault()
@@ -381,20 +390,11 @@ const removeItem = async item => {
               )}
             </button>
 
-            {scanResult && (
-              <ScanResults
-                result={scanResult}
-                onSave={saveScan}
-                saving={saving}
-                error={saveError}
-                onDiscard={() => { setScanResult(null); setSaveError('') }}
-              />
-            )}
-
             <p className="mt-4 flex items-center gap-2 text-[10px] text-muted">
               <Lock className="w-3.5 h-3.5" />
               NutriGo reads the label photo you choose. We don’t fill in missing values.
             </p>
+            </>}
           </section>
 
           {/* Cart card */}
@@ -455,6 +455,10 @@ const removeItem = async item => {
                 </p>
               )}
 
+              {calorieLimit > 0 && <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/80" role="progressbar" aria-label="Cart calories compared with trip limit" aria-valuemin={0} aria-valuemax={calorieLimit} aria-valuenow={Math.min(Math.round(totalCalories), calorieLimit)}>
+                <div className={`h-full rounded-full transition-all ${overLimit ? 'bg-rose-500' : 'bg-brand'}`} style={{ width: `${Math.min(100, totalCalories / calorieLimit * 100)}%` }} />
+              </div>}
+
               {calorieLimit === 0 && (
                 <Link
                   to="/profile"
@@ -506,11 +510,12 @@ const removeItem = async item => {
                     return (
                       <li
                         key={item.id}
-                        className="rounded-2xl border border-line bg-white/60 p-4 space-y-3"
+                        className="rounded-2xl border border-line bg-white/60 p-2.5 space-y-1.5"
                       >
                         <div className="min-w-0">
                           <EditableItemName item={item} onSave={renameItem} disabled={saving || scanning} />
-                          <p className="mt-0.5 text-[11px] text-muted">
+                          {scoreNutrition(item).stars && <span className="mt-1 inline-flex items-center rounded-full bg-[#fff4d6] px-2 py-0.5 text-[10px] font-semibold text-[#80621b]">★ {scoreNutrition(item).stars}/5 {scoreNutrition(item).label}</span>}
+                          <p className="mt-0.5 text-[11px] leading-4 text-muted">
                             {num(item.calories)} kcal · P {num(item.protein)}g · C {num(item.carbs)}g · F{' '}
                             {num(item.fat)}g
                           </p>
