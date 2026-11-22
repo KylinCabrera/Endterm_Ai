@@ -1,0 +1,21 @@
+services:
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo-data:/data/db
+
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      MONGODB_URL: mongodb://mongo:27017
+      DB_NAME: nutrigo_local
+      GEMINI_API_KEY: test-key-not-a-live-key
+      SENTRY_DSN: ""
+      FRONTEND_URL: http://localhost:5173
+    depends_on:
+      - mongo
+
+volumes:
+  mongo-data:
