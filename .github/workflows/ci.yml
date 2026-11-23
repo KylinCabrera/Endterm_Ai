@@ -119,5 +119,5 @@ jobs:
           curl --fail --silent --show-error --max-time 60 -X POST "$DEPLOY_HOOK" > /dev/null
       - name: Verify database health and deployed revision
         env:
-          HEALTH_URL: ${{ vars.BACKEND_HEALTH_URL }}
+          HEALTH_URL: ${{ vars.BACKEND_HEALTH_URL || 'https://nutrigo-ai-backend.onrender.com/health' }}
         run: python3 scripts/check_deployment.py --url "$HEALTH_URL" --revision "$GITHUB_SHA"

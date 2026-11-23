@@ -569,7 +569,7 @@ const removeItem = async item => {
         <footer className="mt-12 flex items-center justify-between text-[10px] text-muted">
           <p>
             <span className="font-semibold text-ink">NutriGo AI</span>
-            <span className="ml-3">Clarity for the everyday shop.</span>
+            <span className="ml-3">Clarity for every shopping trip.</span>
           </p>
           <Link to="/" className="font-semibold text-ink inline-flex items-center gap-1">
             About NutriGo <ArrowRight className="w-3 h-3" />
