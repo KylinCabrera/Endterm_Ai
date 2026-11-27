@@ -3,6 +3,11 @@ services:
     image: mongo:7
     volumes:
       - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
 
   backend:
     build: .
@@ -11,11 +16,29 @@ services:
     environment:
       MONGODB_URL: mongodb://mongo:27017
       DB_NAME: nutrigo_local
-      GEMINI_API_KEY: test-key-not-a-live-key
+      GEMINI_API_KEY: ${GEMINI_API_KEY:?Set GEMINI_API_KEY in the .env file}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
+      CLERK_ISSUER_URL: ${CLERK_ISSUER_URL:?Set CLERK_ISSUER_URL in the .env file}
       SENTRY_DSN: ""
       FRONTEND_URL: http://localhost:5173
+      ENV: development
+      AI_SCANS_PER_MINUTE: ${AI_SCANS_PER_MINUTE:-5}
+      AI_SCANS_PER_DAY: ${AI_SCANS_PER_DAY:-50}
+      AI_GLOBAL_SCANS_PER_DAY: ${AI_GLOBAL_SCANS_PER_DAY:-500}
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:8000
+        VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY:?Set VITE_CLERK_PUBLISHABLE_KEY in the .env file}
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
 
 volumes:
   mongo-data:
